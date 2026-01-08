@@ -61,3 +61,17 @@ func (r *MongoUserRepository) FindByGitHubID(ctx context.Context, githubID int64
 
 	return &user, err
 }
+func (r *MongoUserRepository) FindByYandexID(ctx context.Context, yandexID string) (*models.User, error) {
+	var user models.User
+
+	err := r.collection.FindOne(ctx, bson.M{
+		"yandex_id": yandexID,
+		"provider":  "yandex",
+	}).Decode(&user)
+
+	if err == mongo.ErrNoDocuments {
+		return nil, ErrNotFound
+	}
+
+	return &user, err
+}

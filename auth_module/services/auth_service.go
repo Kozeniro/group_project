@@ -191,3 +191,45 @@ func (s *AuthService) LoginWithGitHub(
 		User:         user,
 	}, nil
 }
+func (s *AuthService) LoginWithYandex(
+	ctx context.Context,
+	yandexID string,
+	email string,
+) (*AuthResult, error) {
+
+	user, err := s.userRepo.FindByYandexID(ctx, yandexID)
+
+	if err == repository.ErrNotFound {
+		user = &models.User{
+			ID:        primitive.NewObjectID(),
+			Email:     email,
+			Provider:  "yandex",
+			YandexID:  yandexID,
+			CreatedAt: time.Now(),
+		}
+
+		if err := s.userRepo.Create(ctx, user); err != nil {
+			return nil, err
+		}
+	} else if err != nil {
+		return nil, err
+	}
+
+	userID := user.ID.Hex()
+
+	accessToken, err := s.jwtService.GenerateAccessToken(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	refreshToken, err := s.jwtService.GenerateRefreshToken(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AuthResult{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		User:         user,
+	}, nil
+}

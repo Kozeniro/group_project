@@ -13,6 +13,7 @@ type User struct {
 	Password  string             `bson:"password,omitempty" json:"-"`
 	Provider  string             `bson:"provider" json:"provider"` // local / github / yandex
 	GitHubID  int64              `bson:"github_id,omitempty" json:"github_id,omitempty"`
+	YandexID  string             `bson:"yandex_id,omitempty" json:"yandex_id,omitempty"`
 	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
 }
 

@@ -27,6 +27,11 @@ type Config struct {
 	GitHubClientID     string
 	GitHubClientSecret string
 	GitHubRedirectURL  string
+
+	//yandex
+	YandexClientID     string
+	YandexClientSecret string
+	YandexRedirectURL  string
 }
 
 func Load() *Config {
@@ -56,6 +61,11 @@ func Load() *Config {
 		GitHubClientID:     os.Getenv("GITHUB_CLIENT_ID"),
 		GitHubClientSecret: os.Getenv("GITHUB_CLIENT_SECRET"),
 		GitHubRedirectURL:  os.Getenv("GITHUB_REDIRECT_URL"),
+
+		//yandex
+		YandexClientID:     os.Getenv("YANDEX_CLIENT_ID"),
+		YandexClientSecret: os.Getenv("YANDEX_CLIENT_SECRET"),
+		YandexRedirectURL:  os.Getenv("YANDEX_REDIRECT_URL"),
 	}
 }
 

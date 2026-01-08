@@ -52,3 +52,27 @@ func (h *TokenHandler) GitHubLogin(c *gin.Context) {
 
 	c.Redirect(http.StatusFound, githubURL)
 }
+func (h *TokenHandler) YandexLogin(c *gin.Context) {
+	loginToken := c.Query("token")
+	if loginToken == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "token is required"})
+		return
+	}
+
+	// проверка login token
+	_, err := h.Store.Get(loginToken)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid login token"})
+		return
+	}
+
+	q := url.Values{}
+	q.Set("response_type", "code")
+	q.Set("client_id", os.Getenv("YANDEX_CLIENT_ID"))
+	q.Set("redirect_uri", os.Getenv("YANDEX_REDIRECT_URL"))
+	q.Set("state", loginToken)
+
+	yandexURL := "https://oauth.yandex.ru/authorize?" + q.Encode()
+
+	c.Redirect(http.StatusFound, yandexURL)
+}

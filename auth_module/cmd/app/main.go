@@ -55,6 +55,11 @@ func main() {
 		cfg.GitHubClientSecret,
 		cfg.GitHubRedirectURL,
 	)
+	yandexService := services.NewYandexService(
+		cfg.YandexClientID,
+		cfg.YandexClientSecret,
+		cfg.YandexRedirectURL,
+	)
 	// ===== Handlers =====
 	authHandler := handlers.NewAuthHandler(authService)
 	loginStatusHandler := handlers.NewLoginStatusHandler(loginStore)
@@ -70,12 +75,18 @@ func main() {
 		githubService,
 		authService,
 	)
+	yandexCallbackHandler := handlers.NewYandexCallbackHandler(
+		yandexService,
+		authService,
+	)
 	// ===== Auth routes =====
 	auth := r.Group("/auth")
 	{
 		auth.POST("/login/token", tokenHandler.CreateLoginToken)
-		auth.GET("/login/github", tokenHandler.GitHubLogin)
-		auth.GET("/github/callback", githubCallbackHandler.Callback)
+		auth.GET("/login/github", tokenHandler.YandexLogin)
+		auth.GET("/github/callback", yandexCallbackHandler.Callback)
+		auth.GET("/login/yandex", tokenHandler.GitHubLogin)
+		auth.GET("/yandex/callback", githubCallbackHandler.Callback)
 		auth.POST("/login", authHandler.Login)
 		auth.POST("/register", authHandler.Register)
 		auth.POST("/refresh", authHandler.Refresh)
