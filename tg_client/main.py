@@ -2,23 +2,26 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 import asyncio
 from config import Config
+from redis_client import redis_client
 
 bot = Bot(token=Config.BOT_TOKEN)
 dp = Dispatcher()
 
-user_states = {}
 
 def get_user_state(chat_id):
-    return user_states.get(chat_id, {'state': 'unknown'})
+    user_data = redis_client.get_user(chat_id)
+    if user_data:
+        return user_data
+    return {'state': 'unknown'}
 
 def set_user_state(chat_id, state, data=None):
     if data is None:
-        data = {}
-    user_states[chat_id] = {'state': state, **data}
+        data = {}   
+    user_data = {'state': state, **data}
+    redis_client.save_user(chat_id, user_data)
 
 def delete_user_state(chat_id):
-    if chat_id in user_states:
-        del user_states[chat_id]
+    redis_client.delete_user(chat_id)
 
 
 @dp.message(Command("start"))
@@ -46,7 +49,6 @@ async def start_command(message: types.Message):
         await message.answer(
             "Вы авторизованы. Доступные команды: /help"
         )
-    print(user_states)
 
 
 @dp.message(Command("help"))
@@ -87,9 +89,9 @@ async def login_command(message: types.Message):
     user_state = get_user_state(chat_id)
     
     if user_state['state'] == 'unknown':
-        await message.answer("Сначала напиши /start")    
+        await message.answer("Сначала напишите /start")    
     elif user_state['state'] == 'authorized':
-        await message.answer("Ты уже авторизован! Используй /logout для выхода")
+        await message.answer("Вы уже авторизованы!")
     else: 
         await message.answer(
             "Начало авторизации\n"
