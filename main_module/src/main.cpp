@@ -1,6 +1,13 @@
 #include <iostream>
 #include <pqxx/pqxx>
 
+#include "ResourceUsers.h"
+#include "ResourceCourse.h"
+#include "ResourceQuestions.h"
+#include "ResourceTests.h"
+#include "ResourceAnswers.h"
+#include "ResourceAttempt.h"
+
 int main()
 {
     std::string connection_string = "postgres://bf39575214c9189fa70701554b75ce7dd71cc18accecae236c76748378e000a8:sk_keRvGx-d9MLa5h3yNF3Pk@db.prisma.io:5432/postgres?sslmode=require";
