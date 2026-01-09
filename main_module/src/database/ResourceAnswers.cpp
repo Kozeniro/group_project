@@ -2,7 +2,7 @@
 
 ResourceAnswers::ResourceAnswers(pqxx::connection& connection) : conn(connection) {}
 
-// 1. Создать ответ
+// 1. РЎРѕР·РґР°С‚СЊ РѕС‚РІРµС‚
 void ResourceAnswers::create_answer(int attempt_id, int question_id) {
     pqxx::work txn(conn);
     txn.exec_params(
@@ -13,7 +13,7 @@ void ResourceAnswers::create_answer(int attempt_id, int question_id) {
     txn.commit();
 }
 
-// 2. Посмотреть ответ (ID вопроса выбранный вариант)
+// 2. РџРѕСЃРјРѕС‚СЂРµС‚СЊ РѕС‚РІРµС‚ (ID РІРѕРїСЂРѕСЃР° РІС‹Р±СЂР°РЅРЅС‹Р№ РІР°СЂРёР°РЅС‚)
 AnswerLine ResourceAnswers::get_answer(int answer_id) {
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params(
@@ -23,7 +23,7 @@ AnswerLine ResourceAnswers::get_answer(int answer_id) {
     return { res[0]["question_id"].as<int>(), res[0]["question_version"].as<int>(), res[0]["answer_option"].as<int>() };
 }
 
-// 3. Изменить ответ
+// 3. РР·РјРµРЅРёС‚СЊ РѕС‚РІРµС‚
 void ResourceAnswers::update_answer(int answer_id, int new_option) {
     pqxx::work txn(conn);
     pqxx::result att_status = txn.exec_params(
@@ -40,7 +40,7 @@ void ResourceAnswers::update_answer(int answer_id, int new_option) {
     }
 }
 
-// 4. Удалить ответ (answer_option = -1)
+// 4. РЈРґР°Р»РёС‚СЊ РѕС‚РІРµС‚ (answer_option = -1)
 void ResourceAnswers::delete_answer(int answer_id) {
     pqxx::work txn(conn);
     pqxx::result att_status = txn.exec_params(

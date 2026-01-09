@@ -2,7 +2,7 @@
 
 ResourceCourse::ResourceCourse(pqxx::connection& conn) :conn(conn) {}
 
-// 1.Посмотреть список дисциплин
+// 1.РџРѕСЃРјРѕС‚СЂРµС‚СЊ СЃРїРёСЃРѕРє РґРёСЃС†РёРїР»РёРЅ
 std::vector<CourseLine> ResourceCourse::get_all() {
     std::vector<CourseLine> courses;
     pqxx::work txn(conn);
@@ -13,7 +13,7 @@ std::vector<CourseLine> ResourceCourse::get_all() {
     return courses;
 }
 
-// 2.Посмотреть информацию о дисциплине (название, описание, ID преподавателя)
+// 2.РџРѕСЃРјРѕС‚СЂРµС‚СЊ РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ РґРёСЃС†РёРїР»РёРЅРµ (РЅР°Р·РІР°РЅРёРµ, РѕРїРёСЃР°РЅРёРµ, ID РїСЂРµРїРѕРґР°РІР°С‚РµР»СЏ)
 CourseInfo ResourceCourse::get_info(int course_id) {
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params(
@@ -23,7 +23,7 @@ CourseInfo ResourceCourse::get_info(int course_id) {
     return { res[0]["name"].as<std::string>(),res[0]["description"].as<std::string>(),res[0]["instructor_id"].as<int>() };
 }
 
-// 3.Изменить информацию о дисциплине
+// 3.РР·РјРµРЅРёС‚СЊ РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ РґРёСЃС†РёРїР»РёРЅРµ
 void ResourceCourse::update_info(int course_id, const std::string& name, const std::string& description) {
     pqxx::work txn(conn);
     txn.exec_params(
@@ -33,7 +33,7 @@ void ResourceCourse::update_info(int course_id, const std::string& name, const s
     txn.commit();
 }
 
-// 4.Посмотреть тесты дисциплины
+// 4.РџРѕСЃРјРѕС‚СЂРµС‚СЊ С‚РµСЃС‚С‹ РґРёСЃС†РёРїР»РёРЅС‹
 std::vector<TestLine> ResourceCourse::get_tests(int course_id) {
     std::vector<TestLine> tests;
     pqxx::work txn(conn);
@@ -47,7 +47,7 @@ std::vector<TestLine> ResourceCourse::get_tests(int course_id) {
     return tests;
 }
 
-// 5.Посмотреть активность теста
+// 5.РџРѕСЃРјРѕС‚СЂРµС‚СЊ Р°РєС‚РёРІРЅРѕСЃС‚СЊ С‚РµСЃС‚Р°
 bool ResourceCourse::is_test_active(int course_id, int test_id) {
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params(
@@ -60,7 +60,7 @@ bool ResourceCourse::is_test_active(int course_id, int test_id) {
     return res[0]["is_active"].as<bool>();
 }
 
-// 6.Активировать/Деактивировать тест
+// 6.РђРєС‚РёРІРёСЂРѕРІР°С‚СЊ/Р”РµР°РєС‚РёРІРёСЂРѕРІР°С‚СЊ С‚РµСЃС‚
 void ResourceCourse::set_test_active(int course_id, int test_id, bool active) {
     pqxx::work txn(conn);
     txn.exec_params(
@@ -76,7 +76,7 @@ void ResourceCourse::set_test_active(int course_id, int test_id, bool active) {
     txn.commit();
 }
 
-// 7.Добавить тест в дисциплину
+// 7.Р”РѕР±Р°РІРёС‚СЊ С‚РµСЃС‚ РІ РґРёСЃС†РёРїР»РёРЅСѓ
 int ResourceCourse::add_test(int course_id, const std::string& test_name) {
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params(
@@ -87,7 +87,7 @@ int ResourceCourse::add_test(int course_id, const std::string& test_name) {
     return res[0]["id"].as<int>();
 }
 
-// 8.Удалить тест из дисциплины 
+// 8.РЈРґР°Р»РёС‚СЊ С‚РµСЃС‚ РёР· РґРёСЃС†РёРїР»РёРЅС‹ 
 void ResourceCourse::remove_test(int course_id, int test_id) {
     pqxx::work txn(conn);
     txn.exec_params(
@@ -97,7 +97,7 @@ void ResourceCourse::remove_test(int course_id, int test_id) {
     txn.commit();
 }
 
-// 9.Посмотреть список студентов дисциплины
+// 9.РџРѕСЃРјРѕС‚СЂРµС‚СЊ СЃРїРёСЃРѕРє СЃС‚СѓРґРµРЅС‚РѕРІ РґРёСЃС†РёРїР»РёРЅС‹
 std::vector<int> ResourceCourse::get_students(int course_id) {
     std::vector<int> students;
     pqxx::work txn(conn);
@@ -111,7 +111,7 @@ std::vector<int> ResourceCourse::get_students(int course_id) {
     return students;
 }
 
-// 10.Записать пользователя на дисциплину
+// 10.Р—Р°РїРёСЃР°С‚СЊ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РЅР° РґРёСЃС†РёРїР»РёРЅСѓ
 void ResourceCourse::add_user(int user_id, int course_id) {
     pqxx::work txn(conn);
     txn.exec_params(
@@ -121,7 +121,7 @@ void ResourceCourse::add_user(int user_id, int course_id) {
     txn.commit();
 }
 
-// 11.Отчислить пользователя с дисциплины
+// 11.РћС‚С‡РёСЃР»РёС‚СЊ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ СЃ РґРёСЃС†РёРїР»РёРЅС‹
 void ResourceCourse::remove_user(int user_id, int course_id) {
     pqxx::work txn(conn);
     txn.exec_params(
@@ -131,7 +131,7 @@ void ResourceCourse::remove_user(int user_id, int course_id) {
     txn.commit();
 }
 
-// 12.Создать дисциплину
+// 12.РЎРѕР·РґР°С‚СЊ РґРёСЃС†РёРїР»РёРЅСѓ
 int ResourceCourse::create_course(const std::string& name, const std::string& description, int instructor_id) {
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params(
@@ -142,7 +142,7 @@ int ResourceCourse::create_course(const std::string& name, const std::string& de
     return res[0]["id"].as<int>();
 }
 
-// 13.Удалить дисциплину
+// 13.РЈРґР°Р»РёС‚СЊ РґРёСЃС†РёРїР»РёРЅСѓ
 void ResourceCourse::delete_course(int course_id) {
     pqxx::work txn(conn);
     txn.exec_params("UPDATE courses SET is_exists = FALSE WHERE id = $1", course_id);

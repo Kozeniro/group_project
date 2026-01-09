@@ -2,7 +2,7 @@
 
 ResourceTests::ResourceTests(pqxx::connection& conn) :conn(conn) {}
 
-// 1.Удалить вопрос из теста
+// 1.РЈРґР°Р»РёС‚СЊ РІРѕРїСЂРѕСЃ РёР· С‚РµСЃС‚Р°
 void ResourceTests::remove_question(int test_id, int question_id) {
     pqxx::work txn(conn);
     pqxx::result was_attempted = txn.exec_params(
@@ -18,7 +18,7 @@ void ResourceTests::remove_question(int test_id, int question_id) {
     txn.commit();
 }
 
-// 2.Добавить вопрос в тест 
+// 2.Р”РѕР±Р°РІРёС‚СЊ РІРѕРїСЂРѕСЃ РІ С‚РµСЃС‚ 
 void ResourceTests::add_question(int test_id, int question_id) {
     pqxx::work txn(conn);
 
@@ -37,7 +37,7 @@ void ResourceTests::add_question(int test_id, int question_id) {
     txn.commit();
 }
 
-// 3.Изменить порядок вопросов в тесте
+// 3.РР·РјРµРЅРёС‚СЊ РїРѕСЂСЏРґРѕРє РІРѕРїСЂРѕСЃРѕРІ РІ С‚РµСЃС‚Рµ
 void ResourceTests::set_question_order(int test_id, const std::vector<int>& question_ids) {
     pqxx::work txn(conn);
 
@@ -57,7 +57,7 @@ void ResourceTests::set_question_order(int test_id, const std::vector<int>& ques
     txn.commit();
 }
 
-// 4.Посмотреть список пользователей, прошедших тест
+// 4.РџРѕСЃРјРѕС‚СЂРµС‚СЊ СЃРїРёСЃРѕРє РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№, РїСЂРѕС€РµРґС€РёС… С‚РµСЃС‚
 std::vector<int> ResourceTests::get_users_completed(int test_id) {
     std::vector<int> user_ids;
     pqxx::work txn(conn);
@@ -71,7 +71,7 @@ std::vector<int> ResourceTests::get_users_completed(int test_id) {
     return user_ids;
 }
 
-// 5.Посмотреть оценку пользователя
+// 5.РџРѕСЃРјРѕС‚СЂРµС‚СЊ РѕС†РµРЅРєСѓ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
 std::vector<ScoresUsers> ResourceTests::get_user_scores(int test_id) {
     std::vector<ScoresUsers> results;
     pqxx::work txn(conn);
@@ -85,7 +85,7 @@ std::vector<ScoresUsers> ResourceTests::get_user_scores(int test_id) {
     return results;
 }
 
-// 6.Посмотреть ответы пользователя
+// 6.РџРѕСЃРјРѕС‚СЂРµС‚СЊ РѕС‚РІРµС‚С‹ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
 std::vector<UserAnswers> ResourceTests::get_users_answers(int test_id) {
     std::vector<UserAnswers> users_answers;
     pqxx::work txn(conn);

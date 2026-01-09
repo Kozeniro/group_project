@@ -2,7 +2,7 @@
 
 ResourceQuestions::ResourceQuestions(pqxx::connection& conn) : conn(conn) {}
 
-// 1.Посмотреть список вопросов 
+// 1.РџРѕСЃРјРѕС‚СЂРµС‚СЊ СЃРїРёСЃРѕРє РІРѕРїСЂРѕСЃРѕРІ 
 std::vector<QuestionLine> ResourceQuestions::get_all() {
     std::vector<QuestionLine> questions;
     pqxx::work txn(conn);
@@ -16,7 +16,7 @@ std::vector<QuestionLine> ResourceQuestions::get_all() {
     return questions;
 }
 
-// 2.Посмотреть информацию о вопросе
+// 2.РџРѕСЃРјРѕС‚СЂРµС‚СЊ РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ РІРѕРїСЂРѕСЃРµ
 QuestionInfo ResourceQuestions::get_info(int question_id, int version) {
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params(
@@ -32,7 +32,7 @@ QuestionInfo ResourceQuestions::get_info(int question_id, int version) {
     };
 }
 
-// 3.Редактировать вопрос
+// 3.Р РµРґР°РєС‚РёСЂРѕРІР°С‚СЊ РІРѕРїСЂРѕСЃ
 void ResourceQuestions::update_question(int question_id, const std::string& name, const std::string& text, const nlohmann::json& options, int correct_option, int author_id) {
     pqxx::work txn(conn);
     txn.exec_params(
@@ -43,7 +43,7 @@ void ResourceQuestions::update_question(int question_id, const std::string& name
     txn.commit();
 }
 
-// 4.Создать вопрос
+// 4.РЎРѕР·РґР°С‚СЊ РІРѕРїСЂРѕСЃ
 int ResourceQuestions::create_question(const std::string& name, const std::string& text, const nlohmann::json& options, int correct_option, int author_id) {
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params(
@@ -55,10 +55,10 @@ int ResourceQuestions::create_question(const std::string& name, const std::strin
     return res[0]["id"].as<int>();
 }
 
-// 5.Удалить вопрос
+// 5.РЈРґР°Р»РёС‚СЊ РІРѕРїСЂРѕСЃ
 void ResourceQuestions::delete_question(int question_id) {
     pqxx::work txn(conn);
-    // Проверка на наличие в тестах
+    // РџСЂРѕРІРµСЂРєР° РЅР° РЅР°Р»РёС‡РёРµ РІ С‚РµСЃС‚Р°С…
     pqxx::result is_in_tests = txn.exec_params(
         "SELECT EXISTS (SELECT 1 FROM tests_questions WHERE question_id = $1)",
         question_id

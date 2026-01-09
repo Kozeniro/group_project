@@ -2,7 +2,7 @@
 
 ResourceAttempt::ResourceAttempt(pqxx::connection& conn, ResourceAnswers& resource_answers) : conn(conn), resource_answers(resource_answers) {}
 
-// 1.Создать попытку
+// 1.РЎРѕР·РґР°С‚СЊ РїРѕРїС‹С‚РєСѓ
 int ResourceAttempt::create(int user_id, int test_id) {
     int attempt_id = -1;
     pqxx::work txn(conn);
@@ -33,7 +33,7 @@ int ResourceAttempt::create(int user_id, int test_id) {
     return attempt_id;
 }
 
-// 2.Изменить попытку (изменение ответа?)
+// 2.РР·РјРµРЅРёС‚СЊ РїРѕРїС‹С‚РєСѓ (РёР·РјРµРЅРµРЅРёРµ РѕС‚РІРµС‚Р°?)
 void ResourceAttempt::update_answer(int attempt_id, int answer_id, int answer_option) {
     pqxx::work txn(conn);
     pqxx::result test_att_check = txn.exec_params(
@@ -51,7 +51,7 @@ void ResourceAttempt::update_answer(int attempt_id, int answer_id, int answer_op
 
 }
 
-// 3.Завершить попытку
+// 3.Р—Р°РІРµСЂС€РёС‚СЊ РїРѕРїС‹С‚РєСѓ
 void ResourceAttempt::finish(int attempt_id) {
 
     pqxx::work txn(conn);
@@ -77,7 +77,7 @@ void ResourceAttempt::finish(int attempt_id) {
 
 }
 
-// 4.Посмотреть попытку
+// 4.РџРѕСЃРјРѕС‚СЂРµС‚СЊ РїРѕРїС‹С‚РєСѓ
 AttemptInfo ResourceAttempt::get_info(int user_id, int test_id) {
     pqxx::work txn(conn);
     pqxx::result att_status = txn.exec_params(

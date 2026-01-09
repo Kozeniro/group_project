@@ -1,7 +1,7 @@
 #include "ResourceUsers.h"
 
 ResourceUsers::ResourceUsers(pqxx::connection& conn):conn(conn) {};
-// 0. Создать пользователя
+// 0. РЎРѕР·РґР°С‚СЊ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
 int ResourceUsers::create(const std::string& name) {
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params(
@@ -12,7 +12,7 @@ int ResourceUsers::create(const std::string& name) {
     return res[0]["id"].as<int>();
 }
 
-// 1. Посмотреть список пользователей
+// 1. РџРѕСЃРјРѕС‚СЂРµС‚СЊ СЃРїРёСЃРѕРє РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№
 std::vector<UserLine> ResourceUsers::get_all() {
     std::vector<UserLine> users;
     pqxx::work txn(conn);
@@ -23,21 +23,21 @@ std::vector<UserLine> ResourceUsers::get_all() {
     return users;
 }
 
-// 2. Посмотреть информацию о пользователе (ФИО)
+// 2. РџРѕСЃРјРѕС‚СЂРµС‚СЊ РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ РїРѕР»СЊР·РѕРІР°С‚РµР»Рµ (Р¤РРћ)
 std::string ResourceUsers::get_name(int user_id) {
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params("SELECT full_name FROM users WHERE id = $1", user_id);
     return res[0]["full_name"].as<std::string>();
 }
 
-// 3. Изменить ФИО пользователя
+// 3. РР·РјРµРЅРёС‚СЊ Р¤РРћ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
 void ResourceUsers::update_name(int user_id, const std::string& new_name) {
     pqxx::work txn(conn);
     txn.exec_params("UPDATE users SET full_name = $1 WHERE id = $2", new_name, user_id);
     txn.commit();
 }
 
-// 4. Посмотреть информацию о пользователе (курсы, оценки, тесты)
+// 4. РџРѕСЃРјРѕС‚СЂРµС‚СЊ РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ РїРѕР»СЊР·РѕРІР°С‚РµР»Рµ (РєСѓСЂСЃС‹, РѕС†РµРЅРєРё, С‚РµСЃС‚С‹)
 std::vector<std::string> ResourceUsers::get_info(int user_id, Info info_type) {
     std::vector<std::string> info;
 
@@ -80,7 +80,7 @@ std::vector<std::string> ResourceUsers::get_info(int user_id, Info info_type) {
     return info;
 }
 
-// 5. Посмотреть роли пользователя
+// 5. РџРѕСЃРјРѕС‚СЂРµС‚СЊ СЂРѕР»Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
 std::vector<std::string> ResourceUsers::get_roles(int user_id) {
     std::vector<std::string> roles;
     pqxx::work txn(conn);
@@ -94,7 +94,7 @@ std::vector<std::string> ResourceUsers::get_roles(int user_id) {
     return roles;
 }
 
-// 6. Изменить роли пользователя
+// 6. РР·РјРµРЅРёС‚СЊ СЂРѕР»Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
 void ResourceUsers::set_roles(int user_id, const std::vector<std::string>& new_roles) {
     pqxx::work txn(conn);
 
@@ -108,14 +108,14 @@ void ResourceUsers::set_roles(int user_id, const std::vector<std::string>& new_r
     txn.commit();
 }
 
-// 7. Проверить, заблокирован ли пользователь
+// 7. РџСЂРѕРІРµСЂРёС‚СЊ, Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ Р»Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ
 bool ResourceUsers::is_blocked(int user_id) {
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params("SELECT is_blocked FROM users WHERE id = $1", user_id);
     return res[0]["is_blocked"].as<bool>();
 }
 
-// 8. Заблокировать/разблокировать пользователя
+// 8. Р—Р°Р±Р»РѕРєРёСЂРѕРІР°С‚СЊ/СЂР°Р·Р±Р»РѕРєРёСЂРѕРІР°С‚СЊ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
 void ResourceUsers::set_blocked(int user_id, bool blocked) {
     pqxx::work txn(conn);
     txn.exec_params("UPDATE users SET is_blocked = $1 WHERE id = $2", blocked, user_id);
