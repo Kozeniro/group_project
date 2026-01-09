@@ -72,7 +72,7 @@ std::vector<int> ResourceTests::get_users_completed(int test_id) {
 }
 
 // 5.Посмотреть оценку пользователя
-std::vector<ScoresUsers> ResourceTests::get_user_scores(int test_id) {
+std::vector<ScoresUsers> ResourceTests::get_users_scores(int test_id) {
     std::vector<ScoresUsers> results;
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params(

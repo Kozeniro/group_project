@@ -28,7 +28,7 @@ public:
 	void add_question(int test_id, int question_id);
 	void set_question_order(int test_id, const std::vector<int>& question_ids);
 	std::vector<int> get_users_completed(int test_id);
-	std::vector<ScoresUsers> get_user_scores(int test_id);
+	std::vector<ScoresUsers> get_users_scores(int test_id);
 	std::vector<UserAnswers> get_users_answers(int test_id);
 };
 

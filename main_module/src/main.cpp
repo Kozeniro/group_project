@@ -1,12 +1,12 @@
 #include <iostream>
 #include <pqxx/pqxx>
 
-#include "ResourceUsers.h"
-#include "ResourceCourse.h"
-#include "ResourceQuestions.h"
-#include "ResourceTests.h"
-#include "ResourceAnswers.h"
-#include "ResourceAttempt.h"
+#include "Api_resUsers.h"
+#include "Api_resCourse.h"
+#include "Api_resQuestions.h"
+#include "Api_resTests.h"
+#include "Api_resAnswers.h"
+#include "Api_resAttempt.h"
 
 int main()
 {
