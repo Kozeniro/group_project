@@ -3,7 +3,7 @@
 ResourceAttempt::ResourceAttempt(pqxx::connection& conn, ResourceAnswers& resource_answers) : conn(conn), resource_answers(resource_answers) {}
 
 // 1.Создать попытку
-int ResourceAttempt::create(int user_id, int test_id) {
+int ResourceAttempt::create_attempt(int user_id, int test_id) {
     int attempt_id = -1;
     pqxx::work txn(conn);
     pqxx::result attempt_exists = txn.exec_params(
@@ -52,7 +52,7 @@ void ResourceAttempt::update_answer(int attempt_id, int answer_id, int answer_op
 }
 
 // 3.Завершить попытку
-void ResourceAttempt::finish(int attempt_id) {
+void ResourceAttempt::finish_attempt(int attempt_id) {
 
     pqxx::work txn(conn);
     pqxx::result test_att_check = txn.exec_params(
