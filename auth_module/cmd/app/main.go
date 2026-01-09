@@ -69,6 +69,22 @@ func main() {
 
 	// ===== Router =====
 	r := gin.Default()
+	r.GET("/profile",
+		authMiddleware.RequireAuth(),
+		handlers.ProfileHandler,
+	)
+
+	r.GET("/admin",
+		authMiddleware.RequireAuth(),
+		authMiddleware.RequireRole("admin"),
+		handlers.AdminHandler,
+	)
+
+	r.POST("/users",
+		authMiddleware.RequireAuth(),
+		authMiddleware.RequirePermission("user.create"),
+		handlers.CreateUserHandler,
+	)
 
 	tokenHandler := handlers.NewTokenHandler(loginStore)
 	githubCallbackHandler := handlers.NewGitHubCallbackHandler(
@@ -83,10 +99,10 @@ func main() {
 	auth := r.Group("/auth")
 	{
 		auth.POST("/login/token", tokenHandler.CreateLoginToken)
-		auth.GET("/login/github", tokenHandler.YandexLogin)
-		auth.GET("/github/callback", yandexCallbackHandler.Callback)
-		auth.GET("/login/yandex", tokenHandler.GitHubLogin)
-		auth.GET("/yandex/callback", githubCallbackHandler.Callback)
+		auth.GET("/login/github", tokenHandler.GitHubLogin)
+		auth.GET("/github/callback", githubCallbackHandler.Callback)
+		auth.GET("/login/yandex", tokenHandler.YandexLogin)
+		auth.GET("/yandex/callback", yandexCallbackHandler.Callback)
 		auth.POST("/login", authHandler.Login)
 		auth.POST("/register", authHandler.Register)
 		auth.POST("/refresh", authHandler.Refresh)

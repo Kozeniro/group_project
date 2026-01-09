@@ -30,7 +30,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	access, refresh, err := h.authService.Login(
+	result, err := h.authService.Login(
 		c.Request.Context(),
 		req.Email,
 		req.Password,
@@ -39,7 +39,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-
+	access := result.AccessToken
+	refresh := result.RefreshToken
 	c.JSON(http.StatusOK, gin.H{
 		"access_token":  access,
 		"refresh_token": refresh,
@@ -57,7 +58,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 
-	access, refresh, err := h.authService.Refresh(
+	result, err := h.authService.Refresh(
 		c.Request.Context(),
 		req.RefreshToken,
 	)
@@ -67,8 +68,9 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"access_token":  access,
-		"refresh_token": refresh,
+		"access_token":  result.AccessToken,
+		"refresh_token": result.RefreshToken,
+		"user":          result.User,
 	})
 }
 
@@ -77,11 +79,6 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	userID := c.GetString("userID")
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	if err := h.authService.Logout(c.Request.Context(), userID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -108,20 +105,22 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.Register(
+	result, err := h.authService.Register(
 		c.Request.Context(),
 		req.Email,
 		req.Password,
-	); err != nil {
-
+	)
+	if err != nil {
 		if err == services.ErrUserAlreadyExists {
 			c.JSON(http.StatusConflict, gin.H{"error": "user already exists"})
 			return
 		}
-
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	c.JSON(http.StatusCreated, gin.H{"message": "registered"})
+	c.JSON(http.StatusCreated, gin.H{
+		"access_token":  result.AccessToken,
+		"refresh_token": result.RefreshToken,
+		"user":          result.User,
+	})
 }

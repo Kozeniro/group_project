@@ -37,6 +37,47 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		}
 
 		c.Set("userID", claims.UserID)
+		c.Set("roles", claims.Roles)
+		c.Set("permissions", claims.Permissions)
 		c.Next()
+	}
+}
+func (m *AuthMiddleware) RequireRole(role string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		rolesAny, exists := c.Get("roles")
+		if !exists {
+			c.AbortWithStatus(http.StatusForbidden)
+			return
+		}
+
+		roles := rolesAny.([]string)
+		for _, r := range roles {
+			if r == role {
+				c.Next()
+				return
+			}
+		}
+
+		c.AbortWithStatus(http.StatusForbidden)
+	}
+}
+func (m *AuthMiddleware) RequirePermission(permission string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		permsAny, exists := c.Get("permissions")
+		if !exists {
+			c.AbortWithStatus(http.StatusForbidden)
+			return
+		}
+
+		perms := permsAny.([]string)
+
+		for _, p := range perms {
+			if p == permission {
+				c.Next()
+				return
+			}
+		}
+
+		c.AbortWithStatus(http.StatusForbidden)
 	}
 }
