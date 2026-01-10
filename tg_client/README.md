@@ -2,5 +2,6 @@ telegram bot:
 ```bash
 @kapibara_gpbot
 ```
-t.me/kapibara_gpbot
+https://t.me/kapibara_gpbot
+
 
