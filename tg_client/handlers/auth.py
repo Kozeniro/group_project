@@ -5,7 +5,7 @@ import secrets
 import string
 from datetime import datetime
 
-from utils.redis_utils import set_user_state, get_user_state, save_login_token, get_login_token
+from utils.redis_utils import set_user_state, get_user_state, delete_user_state, save_login_token, get_login_token, delete_login_token
 from utils.auth_client import auth_client
 
 router = Router()
@@ -120,9 +120,13 @@ async def login_code(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("check_"))
 async def check_status(callback: CallbackQuery):    
     token = callback.data.split("_")[1]
+    chat_id = callback.from_user.id
     
     status_data = await auth_client.check_login_status(token)
     status = status_data.get('status', 'unknown')
+
+    status = status_data.get('status', 'unknown')
+
 
     if status == "pending":
         await callback.message.answer("Авторизация еще не завершена.")    
@@ -131,8 +135,6 @@ async def check_status(callback: CallbackQuery):
         refresh_token = status_data.get('refresh_token')
         user_id = status_data.get('user_id')
         
-        token_data = get_login_token(token)
-        chat_id = token_data.get('chat_id')
         set_user_state(chat_id, 'authorized', {
             'access_token': access_token,
             'refresh_token': refresh_token,
@@ -140,13 +142,22 @@ async def check_status(callback: CallbackQuery):
             'authorized_at': datetime.now().isoformat()
         })
         
+        delete_login_token(token)
+
         await callback.message.answer(
             "Успешная авторизация.\n"
             f"User ID: `{user_id}`"
         )    
     elif status == 'expired':
+        delete_user_state(chat_id)
         await callback.message.answer(
             "Токен устарел. Начните авторизацию заново."
+        )
+    elif status == 'denied':
+        delete_user_state(chat_id)        
+        await callback.message.answer(
+            "Авторизация отклонена.\n"
+            "Попробуйте снова: /login"
         )
 
 @router.message(Command("enter_code"))
