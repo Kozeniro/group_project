@@ -20,14 +20,14 @@ async def login_command(message: Message):
     elif user_state['state'] == 'authorized':
         await message.answer("Вы уже авторизованы!")
     else: 
-        token = ''.join(secrets.choice(string.digits) for _ in range(8))
+        result = await auth_client.create_login_token(provider="default")       
+        token = result.get('token')
         
         user_state['login_token'] = token
-        if user_state['state'] != 'anonymous':
-            user_state['state'] = 'anonymous'
+        user_state['state'] = 'anonymous'
         set_user_state(chat_id, user_state['state'], user_state)
         save_login_token(token, chat_id)
-
+                    
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [
                 InlineKeyboardButton(
@@ -48,56 +48,52 @@ async def login_command(message: Message):
         ])
 
         await message.answer(
-            f"Токен: `{token}`\n"
-            "Выберете способ входа:",
+            "Выберите способ входа:",
             reply_markup=keyboard
         )
 
 @router.callback_query(F.data.startswith("github_"))
 async def login_github(callback: CallbackQuery):
     token = callback.data.split("_")[1]
+    
     auth_url = await auth_client.get_github_auth_url(token)
-
+    
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
-            text="Авторизация", 
-            url=auth_url["auth_url"]
+            text="Авторизация через GitHub", 
+            url=auth_url
         )],
         [InlineKeyboardButton(
-                text="Проверить статус", 
-                callback_data=f"check_{token}"
-            )]
+            text="Проверить статус", 
+            callback_data=f"check_{token}"
+        )]
     ])
     
     await callback.message.answer(
-        f"Авторизация через GitHub\n"
-        f"Токен: `{token}`\n\n"
-        f"Перейдите по ссылке для входа.\n"
+        "Для авторизации через GitHub перейдите по ссылке:\n\n"
         "После авторизации нажмите Проверить статус.",
         reply_markup=keyboard
     )
-    
 
 @router.callback_query(F.data.startswith("yandex_"))
 async def login_yandex(callback: CallbackQuery):
     token = callback.data.split("_")[1]
+    
     auth_url = await auth_client.get_yandex_auth_url(token)
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(
-                text="Авторизация", 
-                url=auth_url["auth_url"]
-            )],
-            [InlineKeyboardButton(
-                text="Проверить статус", 
-                callback_data=f"check_{token}"
-            )]
-        ])
+        [InlineKeyboardButton(
+            text="Авторизация через Яндекс", 
+            url=auth_url
+        )],
+        [InlineKeyboardButton(
+            text="Проверить статус", 
+            callback_data=f"check_{token}"
+        )]
+    ])
     
     await callback.message.answer(
-        f"Авторизация через Яндекс\n"
-        f"Токен: `{token}`\n\n"
-        f"Перейдите по ссылке для входа.\n"
+        "Для авторизации через Яндекс перейдите по ссылке:\n\n"
         "После авторизации нажмите Проверить статус.",
         reply_markup=keyboard
     )
@@ -127,7 +123,6 @@ async def check_status(callback: CallbackQuery):
     
     status_data = await auth_client.check_login_status(token)
     status = status_data.get('status', 'unknown')
-    message = status_data.get('message', '')
 
     if status == "pending":
         await callback.message.answer("Авторизация еще не завершена.")    
@@ -146,7 +141,7 @@ async def check_status(callback: CallbackQuery):
         })
         
         await callback.message.answer(
-            "✅ **Авторизация успешна!**\n\n"
+            "Успешная авторизация.\n"
             f"User ID: `{user_id}`"
         )    
     elif status == 'expired':
