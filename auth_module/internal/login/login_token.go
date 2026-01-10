@@ -1,6 +1,10 @@
 package login
 
-import "time"
+import (
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
 
 type Status string
 
@@ -15,6 +19,7 @@ type LoginToken struct {
 	Token     string
 	ExpiresAt time.Time
 	Status    Status
+	UserID    primitive.ObjectID
 
 	AccessToken  string
 	RefreshToken string

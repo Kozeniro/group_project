@@ -43,12 +43,14 @@ func main() {
 	// ===== Login Token Store (state / token входа) =====
 	// Живёт ТОЛЬКО в модуле авторизации
 	loginStore := login.NewStore(5 * time.Minute)
+	codeService := services.NewCodeService()
 
 	// ===== Auth Service =====
 	authService := services.NewAuthService(
 		jwtService,
 		refreshStore,
 		userRepo,
+		codeService,
 	)
 	githubService := services.NewGitHubService(
 		cfg.GitHubClientID,
@@ -86,14 +88,20 @@ func main() {
 		handlers.CreateUserHandler,
 	)
 
-	tokenHandler := handlers.NewTokenHandler(loginStore)
+	tokenHandler := handlers.NewTokenHandler(
+		loginStore,
+		codeService,
+		authService,
+	)
 	githubCallbackHandler := handlers.NewGitHubCallbackHandler(
 		githubService,
 		authService,
+		codeService,
 	)
 	yandexCallbackHandler := handlers.NewYandexCallbackHandler(
 		yandexService,
 		authService,
+		codeService,
 	)
 	// ===== Auth routes =====
 	auth := r.Group("/auth")
@@ -110,6 +118,7 @@ func main() {
 
 		// 🔹 Проверка статуса login_token
 		auth.GET("/status", loginStatusHandler.Status)
+		auth.GET("/verify", tokenHandler.VerifyLoginCode)
 	}
 
 	// ===== Protected routes =====

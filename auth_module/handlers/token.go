@@ -6,15 +6,26 @@ import (
 	"os"
 
 	"github.com/adziasanovablamet/auth-module/internal/login"
+	"github.com/adziasanovablamet/auth-module/services"
 	"github.com/gin-gonic/gin"
 )
 
 type TokenHandler struct {
-	Store *login.Store
+	Store       *login.Store
+	CodeService *services.CodeService
+	AuthService *services.AuthService
 }
 
-func NewTokenHandler(store *login.Store) *TokenHandler {
-	return &TokenHandler{Store: store}
+func NewTokenHandler(
+	store *login.Store,
+	codeService *services.CodeService,
+	authService *services.AuthService,
+) *TokenHandler {
+	return &TokenHandler{
+		Store:       store,
+		CodeService: codeService,
+		AuthService: authService,
+	}
 }
 
 // POST /auth/login/token
@@ -27,6 +38,32 @@ func (h *TokenHandler) CreateLoginToken(c *gin.Context) {
 	})
 }
 
+// POST /auth/login/code/verify
+func (h *TokenHandler) VerifyLoginCode(c *gin.Context) {
+	code := c.PostForm("code")
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "code required"})
+		return
+	}
+
+	loginToken, err := h.CodeService.VerifyCode(code)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	_, err = h.Store.Get(loginToken)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "login token expired"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":      "login code verified",
+		"login_token": loginToken,
+	})
+}
+
 // GET /auth/login/github?token=...
 func (h *TokenHandler) GitHubLogin(c *gin.Context) {
 	loginToken := c.Query("token")
@@ -35,7 +72,6 @@ func (h *TokenHandler) GitHubLogin(c *gin.Context) {
 		return
 	}
 
-	// проверка login token
 	_, err := h.Store.Get(loginToken)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid login token"})
@@ -49,9 +85,10 @@ func (h *TokenHandler) GitHubLogin(c *gin.Context) {
 	q.Set("state", loginToken)
 
 	githubURL := "https://github.com/login/oauth/authorize?" + q.Encode()
-
 	c.Redirect(http.StatusFound, githubURL)
 }
+
+// GET /auth/login/yandex?token=...
 func (h *TokenHandler) YandexLogin(c *gin.Context) {
 	loginToken := c.Query("token")
 	if loginToken == "" {
@@ -59,7 +96,6 @@ func (h *TokenHandler) YandexLogin(c *gin.Context) {
 		return
 	}
 
-	// проверка login token
 	_, err := h.Store.Get(loginToken)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid login token"})
@@ -73,6 +109,5 @@ func (h *TokenHandler) YandexLogin(c *gin.Context) {
 	q.Set("state", loginToken)
 
 	yandexURL := "https://oauth.yandex.ru/authorize?" + q.Encode()
-
 	c.Redirect(http.StatusFound, yandexURL)
 }

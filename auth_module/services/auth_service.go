@@ -20,18 +20,21 @@ type AuthResult struct {
 type AuthService struct {
 	jwtService   *JWTService
 	refreshStore RefreshStore
-	userRepo     repository.UserRepository
+	UserRepo     repository.UserRepository
+	codeService  *CodeService
 }
 
 func NewAuthService(
 	jwt *JWTService,
 	refreshStore RefreshStore,
 	userRepo repository.UserRepository,
+	codeService *CodeService,
 ) *AuthService {
 	return &AuthService{
 		jwtService:   jwt,
 		refreshStore: refreshStore,
-		userRepo:     userRepo,
+		UserRepo:     userRepo,
+		codeService:  codeService,
 	}
 }
 
@@ -45,7 +48,7 @@ func (s *AuthService) Register(
 	password string,
 ) (*AuthResult, error) {
 
-	_, err := s.userRepo.FindByEmail(ctx, email)
+	_, err := s.UserRepo.FindByEmail(ctx, email)
 	if err == nil {
 		return nil, errors.New("user already exists")
 	}
@@ -64,11 +67,11 @@ func (s *AuthService) Register(
 		CreatedAt: time.Now(),
 	}
 
-	if err := s.userRepo.Create(ctx, user); err != nil {
+	if err := s.UserRepo.Create(ctx, user); err != nil {
 		return nil, err
 	}
 
-	return s.issueTokens(ctx, user)
+	return s.IssueTokens(ctx, user)
 }
 
 /////////////////////////////////////////////////////
@@ -81,7 +84,7 @@ func (s *AuthService) Login(
 	Password string,
 ) (*AuthResult, error) {
 
-	user, err := s.userRepo.FindByEmail(ctx, Email)
+	user, err := s.UserRepo.FindByEmail(ctx, Email)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +93,7 @@ func (s *AuthService) Login(
 		return nil, ErrInvalidCredentials
 	}
 
-	return s.issueTokens(ctx, user)
+	return s.IssueTokens(ctx, user)
 }
 
 /////////////////////////////////////////////////////
@@ -103,7 +106,7 @@ func (s *AuthService) LoginWithGitHub(
 	email string,
 ) (*AuthResult, error) {
 
-	user, err := s.userRepo.FindByGitHubID(ctx, githubID)
+	user, err := s.UserRepo.FindByGitHubID(ctx, githubID)
 
 	if err == repository.ErrNotFound {
 		user = &models.User{
@@ -115,14 +118,14 @@ func (s *AuthService) LoginWithGitHub(
 			CreatedAt: time.Now(),
 		}
 
-		if err := s.userRepo.Create(ctx, user); err != nil {
+		if err := s.UserRepo.Create(ctx, user); err != nil {
 			return nil, err
 		}
 	} else if err != nil {
 		return nil, err
 	}
 
-	return s.issueTokens(ctx, user)
+	return s.IssueTokens(ctx, user)
 }
 
 /////////////////////////////////////////////////////
@@ -135,7 +138,7 @@ func (s *AuthService) LoginWithYandex(
 	email string,
 ) (*AuthResult, error) {
 
-	user, err := s.userRepo.FindByYandexID(ctx, yandexID)
+	user, err := s.UserRepo.FindByYandexID(ctx, yandexID)
 
 	if err == repository.ErrNotFound {
 		user = &models.User{
@@ -147,14 +150,14 @@ func (s *AuthService) LoginWithYandex(
 			CreatedAt: time.Now(),
 		}
 
-		if err := s.userRepo.Create(ctx, user); err != nil {
+		if err := s.UserRepo.Create(ctx, user); err != nil {
 			return nil, err
 		}
 	} else if err != nil {
 		return nil, err
 	}
 
-	return s.issueTokens(ctx, user)
+	return s.IssueTokens(ctx, user)
 }
 
 /////////////////////////////////////////////////////
@@ -171,12 +174,12 @@ func (s *AuthService) Refresh(
 		return nil, err
 	}
 
-	user, err := s.userRepo.FindByID(ctx, claims.UserID)
+	user, err := s.UserRepo.FindByID(ctx, claims.UserID)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.issueTokens(ctx, user)
+	return s.IssueTokens(ctx, user)
 }
 
 /////////////////////////////////////////////////////
@@ -186,7 +189,7 @@ func (s *AuthService) Refresh(
 // 🔑 ОБЩАЯ ВЫДАЧА ТОКЕНОВ
 /////////////////////////////////////////////////////
 
-func (s *AuthService) issueTokens(
+func (s *AuthService) IssueTokens(
 	_ context.Context,
 	user *models.User,
 ) (*AuthResult, error) {
