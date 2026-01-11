@@ -1,23 +1,36 @@
 import React from 'react';
-import './Home.css';
-import GitHubAuth from './GitHubAuth';
-import YandexAuth from './YandexAuth';
+import './styles/Home.css';
+import GitHubAuth from './buttons/GitHubAuth';
+import YandexAuth from './buttons/YandexAuth';
+import CodeAuth from './buttons/CodeAuth';
 
-const Home = () => {
+const Home = ({ userStatus }) => {
     return (
         <div className="container">
             <h1>Добро пожаловать!</h1>
-            <p>Пожалуйста, выберите способ авторизации:</p>
-            <div>
-                <h2>Авторизация через:</h2>
-                <GitHubAuth />
-                <YandexAuth />
-                <p>Или введите код для авторизации:</p>
-                <input type="text" className="auth-input" placeholder="Введите код" />
-                <button className="auth-button">Авторизоваться</button>
-            </div>
+            {userStatus === 'unknown' && (
+                <>
+                    <p>Вы не авторизованы. Выберите способ входа:</p>
+                    <GitHubAuth />
+                    <YandexAuth />
+                    <CodeAuth />
+                </>
+            )}
+            {userStatus === 'anonymous' && (
+                <>
+                    <p>Вы вошли как анонимный пользователь. Пройдите авторизацию:</p>
+                    <GitHubAuth />
+                    <YandexAuth />
+                </>
+            )}
+            {userStatus === 'authorized' && (
+                <>
+                    <p>Вы авторизованы!</p>
+                    <a href="/dashboard">Перейти в личный кабинет</a>
+                    <br />
+                    <a href="/logout">Выйти</a>
+                </>
+            )}
         </div>
     );
 };
-
-export default Home;

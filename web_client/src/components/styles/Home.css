@@ -1,4 +1,4 @@
-/* Стили для страницы авторизации */
+/* Общие стили для страницы */
 body {
     font-family: Arial, sans-serif;
     background-color: #f0f0f0;
@@ -10,29 +10,30 @@ body {
     height: 100vh;
 }
 
-.login-container {
+.container {
     background-color: #ffffff;
     border-radius: 8px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    padding: 20px;
+    padding: 40px;
     text-align: center;
     width: 100%;
-    max-width: 400px;
+    max-width: 600px;
+    margin: auto;
+    margin-top: 50px;
 }
 
-.login-container h2 {
-    color: #31649b;
+h1 {
+    color: #333;
     margin-bottom: 20px;
+    font-size: 2rem;
 }
 
-.social-login {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    margin-bottom: 20px;
-    text-align: center;
+h2 {
+    color: #555;
+    margin: 20px 0;
 }
 
+/* Социальные кнопки */
 .social-button {
     display: flex;
     align-items: center;
@@ -56,6 +57,24 @@ body {
     transform: translateY(-2px);
 }
 
+/* Стили для ввода кода */
+.input-code {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #31649b;
+    border-radius: 5px;
+    font-size: 16px;
+    box-sizing: border-box;
+    margin-top: 10px;
+    margin-bottom: 20px;
+    transition: border-color 0.3s;
+}
+
+.input-code:focus {
+    outline: none;
+    border-color: #2e5e92;
+}
+
 /* Стили для текста регистрации */
 .registration-message {
     margin-top: 20px;
@@ -74,18 +93,18 @@ body {
 
 /* Стили для поля ввода кода */
 .input-code {
-    width: 100%; /* Задаем ширину 100% */
-    padding: 10px; /* Добавляем внутренние отступы */
-    border: 1px solid #31649b; /* Цвет рамки */
-    border-radius: 5px; /* Скругление углов */
-    font-size: 16px; /* Размер шрифта */
-    box-sizing: border-box; /* Учитываем отступы и границы в ширине */
-    margin-top: 10px; /* Отступ сверху */
-    margin-bottom: 20px; /* Отступ снизу */
-    transition: border-color 0.3s; /* Плавный переход для изменения цвета границы */
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #31649b;
+    border-radius: 5px;
+    font-size: 16px;
+    box-sizing: border-box;
+    margin-top: 10px;
+    margin-bottom: 20px;
+    transition: border-color 0.3s;
 }
 
 .input-code:focus {
-    outline: none; /* Убираем стандартное выделение при фокусе */
-    border-color: #2e5e92; /* Изменяем цвет рамки при фокусе */
+    outline: none;
+    border-color: #2e5e92;
 }
