@@ -93,11 +93,6 @@ func main() {
 		codeService,
 		authService,
 	)
-	VerifyHandler := handlers.NewVerifyHandler(
-		codeService,
-		loginStore,
-		authService,
-	)
 	githubCallbackHandler := handlers.NewGitHubCallbackHandler(
 		githubService,
 		authService,
@@ -125,7 +120,7 @@ func main() {
 
 		// 🔹 Проверка статуса login_token
 		auth.GET("/status", loginStatusHandler.Status)
-		auth.GET("/verify", VerifyHandler.Verify)
+		auth.GET("/verify", tokenHandler.Verify)
 	}
 
 	// ===== Protected routes =====

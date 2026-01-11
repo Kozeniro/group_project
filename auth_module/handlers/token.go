@@ -39,7 +39,7 @@ func (h *TokenHandler) CreateLoginToken(c *gin.Context) {
 }
 
 // POST /auth/login/code/verify
-func (h *VerifyHandler) Verify(c *gin.Context) {
+func (h *TokenHandler) Verify(c *gin.Context) {
 	code := c.Query("code")
 	if code == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "code required"})
@@ -47,19 +47,19 @@ func (h *VerifyHandler) Verify(c *gin.Context) {
 	}
 
 	// 1. code -> loginToken
-	loginToken, err := h.codeService.VerifyCode(code)
+	loginToken, err := h.CodeService.VerifyCode(code)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
 	// 2. loginToken -> login entry
-	entry, err := h.loginStore.Get(loginToken)
+	entry, err := h.Store.Get(loginToken)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	user, err := h.authService.UserRepo.FindByID(
+	user, err := h.AuthService.UserRepo.FindByID(
 		c.Request.Context(),
 		entry.UserID.Hex(),
 	)
@@ -67,7 +67,7 @@ func (h *VerifyHandler) Verify(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
 	}
 	// 3. выдаём JWT
-	tokens, err := h.authService.IssueTokens(
+	tokens, err := h.AuthService.IssueTokens(
 		c.Request.Context(),
 		user,
 	)
@@ -75,8 +75,6 @@ func (h *VerifyHandler) Verify(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	// 4. одноразовый loginToken — удаляем
 
 	c.JSON(http.StatusOK, gin.H{
 		"access_token":  tokens.AccessToken,
