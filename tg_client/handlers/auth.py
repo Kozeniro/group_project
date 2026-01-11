@@ -1,9 +1,8 @@
 from aiogram import Router, F
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-import secrets
-import string
 from datetime import datetime
+import json
 
 from utils.redis_utils import set_user_state, get_user_state, delete_user_state, save_login_token, get_login_token, delete_login_token
 from utils.auth_client import auth_client
@@ -15,41 +14,127 @@ async def login_command(message: Message):
     chat_id = message.chat.id
     user_state = get_user_state(chat_id)
     
-    if user_state['state'] == 'unknown':
-        await message.answer("Сначала напишите /start")    
-    elif user_state['state'] == 'authorized':
-        await message.answer("Вы уже авторизованы!")
-    else: 
-        result = await auth_client.create_login_token(provider="default")       
-        token = result.get('token')
-        
-        user_state['login_token'] = token
-        user_state['state'] = 'anonymous'
-        set_user_state(chat_id, user_state['state'], user_state)
-        save_login_token(token, chat_id)
-                    
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="GitHub", 
-                    callback_data=f"github_{token}"
-                ),
-                InlineKeyboardButton(
-                    text="Яндекс", 
-                    callback_data=f"yandex_{token}"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="Войти по коду", 
-                    callback_data=f"code_{token}"
-                )
-            ]
-        ])
+    if user_state['state'] == 'authorized':
+        await message.answer("Вы уже авторизованы.")
+        return
+    
+    result = await auth_client.create_login_token()
+    login_token = result['login_token']
+    
+    set_user_state(chat_id, 'anonymous', {
+        'login_token': login_token,
+        'created_at': datetime.now().isoformat()
+    })
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="GitHub",
+                callback_data=f"github_{login_token}"
+            ),
+            InlineKeyboardButton(
+                text="Яндекс", 
+                callback_data=f"yandex_{login_token}"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="Войти по коду",
+                callback_data=f"create_code_{login_token}"
+            )
+        ]
+    ])
+    
+    await message.answer(
+        "Выберите способ входа:",
+        reply_markup=keyboard
+    )
 
+@router.callback_query(F.data.startswith("create_code_"))
+async def create_code_login(callback: CallbackQuery):
+    original_token = callback.data.split("_")[2]
+    chat_id = callback.from_user.id
+        
+    result = await auth_client.create_login_token("code")
+    
+    login_token = result['login_token']
+    code = result.get('code')
+
+    set_user_state(chat_id, 'anonymous', {
+        'login_token': login_token,
+        'code': code,
+        'created_at': datetime.now().isoformat()
+    })
+    
+    save_login_token(f"code_{code}", {
+        'login_token': login_token,
+        'chat_id': chat_id,
+        'created_at': datetime.now().isoformat(),
+        'status': 'pending'
+    })
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="Проверить статус",
+            callback_data=f"check_{login_token}"
+        )]
+    ])
+    
+    await callback.message.answer(
+        "Вход по коду\n\n"
+        f"Ваш код: `{code}`\n"
+        "Инструкция:\n"
+        "На другом авторизованном устройстве введите команду:\n"
+        f"   `/enter_code {code}`\n"
+        "После ввода кода нажмите Проверить статус\n\n"
+        "Код действителен 1 минуту",
+        parse_mode="Markdown",
+        reply_markup=keyboard
+    )
+
+@router.message(Command("enter_code"))
+async def enter_code_command(message: Message, command: CommandObject = None):
+    if not command or not command.args:
         await message.answer(
-            "Выберите способ входа:",
-            reply_markup=keyboard
+            "Использование: `/enter_code <код>`\n"
+            "Пример: `/enter_code 123456`",
+            parse_mode="Markdown"
+        )
+        return
+    
+    code = command.args.strip()
+    
+    if not code.isdigit() or len(code) != 6:
+        await message.answer("Код должен состоять из 6 цифр")
+        return
+    
+    chat_id = message.chat.id
+    user_state = get_user_state(chat_id)
+    
+    if user_state['state'] != 'authorized':
+        await message.answer(
+            "Вы не авторизованы на этом устройстве."
+        )
+        return
+    
+    refresh_token = user_state.get('refresh_token')
+        
+    result = await auth_client.verify_code(code, refresh_token)
+    
+    if result.get('success'):
+        await message.answer(
+            "Код Верный!\n"
+            "Авторизация выполнена."
+        )
+    else:
+        error_msg = result.get('error', 'Неизвестная ошибка')
+        
+        await message.answer(
+            f"Ошибка: {error_msg}\n\n"
+            "Возможные причины:\n"
+            "-Код неверный\n"
+            "-Код устарел (время действия 1 минута)\n"
+            "-Код уже был использован"
         )
 
 @router.callback_query(F.data.startswith("github_"))
@@ -70,7 +155,7 @@ async def login_github(callback: CallbackQuery):
     ])
     
     await callback.message.answer(
-        "Для авторизации через GitHub перейдите по ссылке:\n\n"
+        "Для авторизации через GitHub перейдите по ссылке ниже:\n\n"
         "После авторизации нажмите Проверить статус.",
         reply_markup=keyboard
     )
@@ -93,97 +178,101 @@ async def login_yandex(callback: CallbackQuery):
     ])
     
     await callback.message.answer(
-        "Для авторизации через Яндекс перейдите по ссылке:\n\n"
-        "После авторизации нажмите Проверить статус.",
+        "Для авторизации через Яндекс перейдите по ссылке ниже:\n\n"
+        "После авторизации нажмите 'Проверить статус'.",
         reply_markup=keyboard
     )
 
-@router.callback_query(F.data.startswith("code_"))
-async def login_code(callback: CallbackQuery):
-    token = callback.data.split("_")[1]   
-
-    code = ''.join(secrets.choice(string.digits) for _ in range(6))
-    save_login_token(f"code_{code}", {
-        'original_token': token,
-        'chat_id': callback.from_user.id,
-        'created_at': datetime.now().isoformat()
-    })
-
-    await callback.message.answer(
-        f"Вход по коду\n\n"
-        f"Ваш код: {code}\n"
-        f"Токен: `{token}`\n\n"
-        "Введите этот код на другом авторизованном устройстве.\n"
-        "Код действителен 5 минут."
-    )
-
 @router.callback_query(F.data.startswith("check_"))
-async def check_status(callback: CallbackQuery):    
+async def check_status(callback: CallbackQuery):
     token = callback.data.split("_")[1]
     chat_id = callback.from_user.id
-    
+        
     status_data = await auth_client.check_login_status(token)
-    status = status_data.get('status', 'unknown')
-
-    status = status_data.get('status', 'unknown')
-
-
+    
+    status = status_data.get('status')
+   
     if status == "pending":
-        await callback.message.answer("Авторизация еще не завершена.")    
+        await callback.message.answer("Авторизация еще не завершена.")      
     elif status == 'authorized':
         access_token = status_data.get('access_token')
         refresh_token = status_data.get('refresh_token')
         user_id = status_data.get('user_id')
-        
+
         set_user_state(chat_id, 'authorized', {
             'access_token': access_token,
             'refresh_token': refresh_token,
             'user_id': user_id,
-            'authorized_at': datetime.now().isoformat()
+            'authorized_at': datetime.now().isoformat(),
+            'login_token': None 
         })
         
-        delete_login_token(token)
-
+        user_state = get_user_state(chat_id)
+        if 'code' in user_state:
+            code = user_state['code']
+            delete_login_token(f"code_{code}")
+        
         await callback.message.answer(
             "Успешная авторизация.\n"
             f"User ID: `{user_id}`"
-        )    
+        )
+    
     elif status == 'expired':
         delete_user_state(chat_id)
         await callback.message.answer(
-            "Токен устарел. Начните авторизацию заново."
-        )
+            "Токен устарел. Начните авторизацию заново: /login"
+        )    
     elif status == 'denied':
-        delete_user_state(chat_id)        
+        delete_user_state(chat_id)
         await callback.message.answer(
             "Авторизация отклонена.\n"
             "Попробуйте снова: /login"
         )
 
-@router.message(Command("enter_code"))
-async def enter_code_command(message: Message, command: CommandObject = None):    
-    code = command.args.strip()
+
+@router.message(Command("refresh"))
+async def refresh_command(message: Message):
     chat_id = message.chat.id
+    user_state = get_user_state(chat_id)
     
-    code_data = get_login_token(f"code_{code}")
-    if not code_data:
-        await message.answer("Код не найден или устарел.")
+    if user_state['state'] != 'authorized':
+        await message.answer("Вы не авторизованы.")
         return
     
-    original_token = code_data.get('original_token')    
-    result = await auth_client.login_with_code(code, original_token)
+    refresh_token = user_state.get('refresh_token')
+    if not refresh_token:
+        await message.answer("Нет токена для обновления.")
+        return
+    
+    result = await auth_client.refresh_access_token(refresh_token)
     
     access_token = result.get('access_token')
-    refresh_token = result.get('refresh_token')
-    user_id = result.get('user_id')        
+    new_refresh_token = result.get('refresh_token')
+    
+    user_state['access_token'] = access_token
+    user_state['refresh_token'] = new_refresh_token
+    set_user_state(chat_id, 'authorized', user_state)
+    
+    await message.answer("Токены обновлены.")
 
-    set_user_state(chat_id, 'authorized', {
-        'access_token': access_token,
-        'refresh_token': refresh_token,
-        'user_id': user_id,
-        'authorized_at': datetime.now().isoformat()
-    })            
-    await message.answer(
-        "Успешная авторизация.\n"
-        f"User ID: `{user_id}`"
-    )
+@router.message(Command("logout"))
+async def logout_command(message: Message, command: CommandObject = None):
+    chat_id = message.chat.id
+    user_state = get_user_state(chat_id)
+    
+    if user_state['state'] != 'authorized':
+        await message.answer("Вы не авторизованы.")
+        return
+    
+    if command and command.args and "all=true" in command.args:
+        refresh_token = user_state.get('refresh_token')
+        if refresh_token:
+            await auth_client.logout(refresh_token)
+        
+        delete_user_state(chat_id)
+        await message.answer("Сеанс завершён на всех устройствах.")
+    
+    else:
+        delete_user_state(chat_id)
+        await message.answer("Сеанс завершён.")
+

@@ -25,7 +25,7 @@ class RedisClient:
         data = self.redis.get(f"chat:{chat_id}")
         if data:
             return json.loads(data)
-        return 
+        return {'state': 'unknown'}
 
     def delete_user(self, chat_id):
         if not self.redis:
@@ -38,13 +38,13 @@ class RedisClient:
             return
         
         data_json = json.dumps(data)
-        self.redis.setex(f"token:{token}", 300, data_json)
+        self.redis.setex(f"login_token:{token}", 300, data_json)
 
     def get_login_token(self, token):
         if not self.redis:
             return None
     
-        data = self.redis.get(f"token:{token}")
+        data = self.redis.get(f"login_token:{token}")
         if data:
             return json.loads(data)
         return None

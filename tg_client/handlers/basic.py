@@ -65,47 +65,6 @@ async def status_command(message: Message):
     else:
         await message.answer(f"Ваш статус: Авторизованный") 
 
-
-@router.message(Command("logout"))
-async def logout_command(message: Message, command: CommandObject = None):
-    chat_id = message.chat.id
-    user_state = get_user_state(chat_id)
-
-    if user_state['state'] != 'authorized':
-        await message.answer("Вы не авторизованы.")
-        return
-    if command and command.args and "all=true" in command.args:
-        refresh_token = user_state.get('refresh_token')
-        if refresh_token:
-            await auth_client.logout(refresh_token)
-        delete_user_state(chat_id)
-        await message.answer("Сеанс завершён на всех устройствах.")
-    else:
-        delete_user_state(chat_id)
-        await message.answer("Сеанс завершён.") 
-    
-
-@router.message(Command("refresh"))
-async def refresh_command(message: Message):
-    chat_id = message.chat.id
-    user_state = get_user_state(chat_id)
-
-    if user_state['state'] != 'authorized':
-        await message.answer("Вы не авторизованы.")
-        return    
-    refresh_token = user_state.get('refresh_token')
-    if not refresh_token:
-        await message.answer("Нет токена для обновления.")
-        return    
-    
-    result = await auth_client.refresh_access_token(refresh_token)    
-    access_token = result.get('access_token')
-    new_refresh_token = result.get('refresh_token')
-
-    user_state['access_token'] = access_token
-    user_state['refresh_token'] = new_refresh_token
-    set_user_state(chat_id, 'authorized', user_state)
-    await message.answer("Токены обновлены.")
     
 
 @router.message()

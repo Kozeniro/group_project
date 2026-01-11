@@ -14,16 +14,66 @@ class AuthClient:
                 headers={'Content-Type': 'application/json'}
             )
         return self.client
-    
-    async def create_login_token(self, provider: str = "default") -> Optional[Dict[str, Any]]:
-        client = await self._get_client()
+
+    async def create_login_token(self, login_type: str = "default") -> Optional[Dict[str, Any]]:
+        client = await self._get_client()        
+        payload = {"type": login_type} if login_type == "code" else {}
+        
         response = await client.post(
             f"{self.base_url}/auth/login/token",
-            json={"provider": provider}
+            json=payload,
+            timeout=10.0
         )
-        data = response.json()
-        token = data.get('login_token')
-        return {"token": token, "full_response": data}    
+        
+        if response.status_code == 200:
+            data = response.json()
+            return data
+        else:
+            return None
+       
+    
+    async def verify_code(self, code: str, refresh_token: str = None) -> Dict:
+        client = await self._get_client()        
+        params = {"code": code}        
+        if refresh_token:
+            params["refresh_token"] = refresh_token        
+
+        response = await client.get(
+            f"{self.base_url}/auth/verify",
+            params=params,
+            timeout=10.0
+        )
+                
+        if response.status_code == 200:
+            return {
+                "success": True,
+                "data": response.json()
+            }
+        else:
+            return {
+                "success": False,
+                "error": f"HTTP {response.status_code}",
+                "details": response.text
+            }
+
+    
+    async def check_login_status(self, login_token: str) -> Dict:
+        client = await self._get_client()
+        
+        response = await client.get(
+            f"{self.base_url}/auth/status",
+            params={"login_token": login_token},
+            timeout=10.0
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {
+                "error": f"HTTP {response.status_code}",
+                "details": response.text
+            }
+
     
     async def get_github_auth_url(self, login_token: str):
         client = await self._get_client()
