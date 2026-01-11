@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"github.com/adziasanovablamet/auth-module/internal/login"
 	"github.com/adziasanovablamet/auth-module/services"
 	"github.com/gin-gonic/gin"
 )
@@ -11,17 +12,20 @@ type YandexCallbackHandler struct {
 	yandexService *services.YandexService
 	authService   *services.AuthService
 	codeService   *services.CodeService
+	store         *login.Store
 }
 
 func NewYandexCallbackHandler(
 	yandex *services.YandexService,
 	auth *services.AuthService,
 	code *services.CodeService,
+	store *login.Store,
 ) *YandexCallbackHandler {
 	return &YandexCallbackHandler{
 		yandexService: yandex,
 		authService:   auth,
 		codeService:   code,
+		store:         store,
 	}
 }
 
@@ -51,7 +55,7 @@ func (h *YandexCallbackHandler) Callback(c *gin.Context) {
 	}
 
 	// 4. get Yandex user
-	user, err := h.yandexService.GetUser(
+	yuser, err := h.yandexService.GetUser(
 		c.Request.Context(),
 		accessToken,
 	)
@@ -59,7 +63,16 @@ func (h *YandexCallbackHandler) Callback(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-
+	user, err := h.authService.LoginWithYandex(
+		c.Request.Context(),
+		yuser.ID,
+		yuser.Email,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	h.store.AttachUser(loginToken, user.User.ID)
 	// 5. создаём 6-значный login code
 	loginCode := h.codeService.CreateCode(loginToken)
 
@@ -68,7 +81,7 @@ func (h *YandexCallbackHandler) Callback(c *gin.Context) {
 		"message":    "enter this code to finish login",
 		"code":       loginCode,
 		"expires_in": 60,
-		"yandex_id":  user.ID,    // можно убрать позже
-		"email":      user.Email, // можно убрать позже
+		"yandex_id":  yuser.ID,    // можно убрать позже
+		"email":      yuser.Email, // можно убрать позже
 	})
 }

@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"github.com/adziasanovablamet/auth-module/internal/login"
 	"github.com/adziasanovablamet/auth-module/services"
 	"github.com/gin-gonic/gin"
 )
@@ -11,17 +12,20 @@ type GitHubCallbackHandler struct {
 	githubService *services.GitHubService
 	authService   *services.AuthService
 	codeService   *services.CodeService
+	store         *login.Store
 }
 
 func NewGitHubCallbackHandler(
 	github *services.GitHubService,
 	auth *services.AuthService,
 	code *services.CodeService,
+	store *login.Store,
 ) *GitHubCallbackHandler {
 	return &GitHubCallbackHandler{
 		githubService: github,
 		authService:   auth,
 		codeService:   code,
+		store:         store,
 	}
 }
 func (h *GitHubCallbackHandler) Callback(c *gin.Context) {
@@ -50,7 +54,7 @@ func (h *GitHubCallbackHandler) Callback(c *gin.Context) {
 	}
 
 	// 4. get GitHub user
-	user, err := h.githubService.GetUser(
+	guser, err := h.githubService.GetUser(
 		c.Request.Context(),
 		accessToken,
 	)
@@ -58,7 +62,18 @@ func (h *GitHubCallbackHandler) Callback(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
+	user, err := h.authService.LoginWithGitHub(
+		c.Request.Context(),
+		guser.ID,
+		guser.Email,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
+	// 🔥 сохраняем UserID в login_token
+	h.store.AttachUser(loginToken, user.User.ID)
 	// 5. создаём 6-значный login code (code authentication)
 	loginCode := h.codeService.CreateCode(loginToken)
 
@@ -67,7 +82,7 @@ func (h *GitHubCallbackHandler) Callback(c *gin.Context) {
 		"message":    "enter this code to finish login",
 		"code":       loginCode,
 		"expires_in": 60,
-		"github_id":  user.ID,    // можно оставить для дебага
-		"email":      user.Email, // можно убрать позже
+		"github_id":  guser.ID,    // можно оставить для дебага
+		"email":      guser.Email, // можно убрать позже
 	})
 }

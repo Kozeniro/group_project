@@ -6,6 +6,7 @@ import (
 
 	"github.com/adziasanovablamet/auth-module/models"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -37,10 +38,22 @@ func (r *MongoUserRepository) FindByEmail(ctx context.Context, email string) (*m
 	return &user, nil
 }
 
-func (r *MongoUserRepository) FindByID(ctx context.Context, id string) (*models.User, error) {
+func (r *MongoUserRepository) FindByID(
+	ctx context.Context,
+	id string,
+) (*models.User, error) {
+
+	objectID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, err
+	}
+
 	var user models.User
 
-	err := r.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&user)
+	err = r.collection.
+		FindOne(ctx, bson.M{"_id": objectID}).
+		Decode(&user)
+
 	if err != nil {
 		return nil, err
 	}

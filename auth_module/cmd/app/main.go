@@ -93,15 +93,22 @@ func main() {
 		codeService,
 		authService,
 	)
+	VerifyHandler := handlers.NewVerifyHandler(
+		codeService,
+		loginStore,
+		authService,
+	)
 	githubCallbackHandler := handlers.NewGitHubCallbackHandler(
 		githubService,
 		authService,
 		codeService,
+		loginStore,
 	)
 	yandexCallbackHandler := handlers.NewYandexCallbackHandler(
 		yandexService,
 		authService,
 		codeService,
+		loginStore,
 	)
 	// ===== Auth routes =====
 	auth := r.Group("/auth")
@@ -118,7 +125,7 @@ func main() {
 
 		// 🔹 Проверка статуса login_token
 		auth.GET("/status", loginStatusHandler.Status)
-		auth.GET("/verify", tokenHandler.VerifyLoginCode)
+		auth.GET("/verify", VerifyHandler.Verify)
 	}
 
 	// ===== Protected routes =====

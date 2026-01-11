@@ -1,6 +1,10 @@
 package login
 
-import "time"
+import (
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
 
 func (s *Store) Get(token string) (*LoginToken, error) {
 	s.mu.Lock()
@@ -17,4 +21,17 @@ func (s *Store) Get(token string) (*LoginToken, error) {
 	}
 
 	return lt, nil
+}
+func (s *Store) AttachUser(token string, userID primitive.ObjectID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	entry, ok := s.tokens[token]
+	if !ok {
+		return ErrNotFound
+	}
+
+	entry.UserID = userID
+	s.tokens[token] = entry
+	return nil
 }
