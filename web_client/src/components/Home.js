@@ -1,8 +1,8 @@
 import React from 'react';
 import './styles/Home.css';
-import GitHubAuth from './buttons/GitHubAuth';
-import YandexAuth from './buttons/YandexAuth';
-import CodeAuth from './buttons/CodeAuth';
+import GitHubAuth from './auth/GitHubAuth';
+import YandexAuth from './auth/YandexAuth';
+import CodeAuth from './auth/CodeAuth';
 
 const Home = ({ userStatus }) => {
     return (
