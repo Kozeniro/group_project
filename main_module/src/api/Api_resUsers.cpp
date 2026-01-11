@@ -2,6 +2,12 @@
 
 Api_resUsers::Api_resUsers(ResourceUsers& resUsers) : resUsers(resUsers) {};
 
+void Api_resUsers::create(const httplib::Request& req, httplib::Response& res) {
+	int user_id = std::stoi(req.get_param_value("id"));
+	std::string name = req.get_param_value("name");
+	resUsers.create(user_id, name);
+}
+
 void Api_resUsers::get_all(const httplib::Request& req, httplib::Response& res) {
 	auto users = resUsers.get_all();
 	nlohmann::json j = nlohmann::json::array();

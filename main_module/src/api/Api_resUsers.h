@@ -9,6 +9,7 @@ private:
 	ResourceUsers& resUsers;
 public:
 	Api_resUsers(ResourceUsers& resUsers);
+	void create(const httplib::Request& req, httplib::Response& res);
 	void get_all(const httplib::Request& req, httplib::Response& res);
 	void get_name(const httplib::Request& req, httplib::Response& res);
 	void update_name(const httplib::Request& req, httplib::Response& res);

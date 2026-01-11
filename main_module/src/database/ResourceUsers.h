@@ -21,7 +21,7 @@ private:
     pqxx::connection& conn;
 public:
     ResourceUsers(pqxx::connection& conn);
-    int create(const std::string& name);
+    void create(int user_id, const std::string& name);
     std::vector<UserLine> get_all();
     std::string get_name(int user_id);
     void update_name(int user_id, const std::string& new_name);

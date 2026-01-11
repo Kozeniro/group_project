@@ -2,14 +2,13 @@
 
 ResourceUsers::ResourceUsers(pqxx::connection& conn):conn(conn) {};
 // 0. Создать пользователя
-int ResourceUsers::create(const std::string& name) {
+void ResourceUsers::create(int user_id, const std::string& name) {
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params(
-        "INSERT INTO users (full_name) VALUES ($1) RETURNING id",
-        name
+        "INSERT INTO users (id, full_name) VALUES ($1, $2)",
+        user_id, name
     );
     txn.commit();
-    return res[0]["id"].as<int>();
 }
 
 // 1. Посмотреть список пользователей

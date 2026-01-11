@@ -6,6 +6,7 @@ void register_routes(httplib::Server& svr,
 	Api_resTests& api_tests, Api_resAnswers& api_answers, Api_resAttempt& api_attempt)
 {
 	//Resource USERS
+	svr.Post(R"(/api/users)", [&](const httplib::Request& req, httplib::Response& res) {api_users.create(req, res);});
 	svr.Get(R"(/api/users)", [&](const httplib::Request& req, httplib::Response& res) {api_users.get_all(req, res);});
 	svr.Get(R"(/api/users/(\d+)/name)", [&](const httplib::Request& req, httplib::Response& res) {api_users.get_name(req, res);});
 	svr.Put(R"(api/api/users/(\d+)/name)", [&](const httplib::Request& req, httplib::Response& res) {api_users.update_name(req, res);});
