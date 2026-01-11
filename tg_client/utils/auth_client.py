@@ -46,7 +46,7 @@ class AuthClient:
         client = await self._get_client()
         response = await client.get(
             f"{self.base_url}/auth/status",
-            params={"token": login_token}
+            params={"login_token": login_token}
         )
         return response.json()
     

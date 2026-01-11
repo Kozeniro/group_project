@@ -8,7 +8,7 @@ async def refresh_tokens(chat_id: str) -> Optional[Dict[str, Any]]:
     user_state = get_user_state(chat_id)
     
     if user_state['state'] != 'authorized':
-        return user_state
+        return None
     
     access_token = user_state.get('access_token')
     refresh_token = user_state.get('refresh_token')
@@ -36,10 +36,12 @@ async def refresh_tokens(chat_id: str) -> Optional[Dict[str, Any]]:
     return user_state
 
 async def make_authorized_request(chat_id: str, method: str, endpoint: str, **kwargs) -> Tuple[Optional[Any], Optional[str]]:
-    user_state = await refresh_tokens(chat_id)    
+    user_state = get_user_state(chat_id)
+    
     if not user_state or user_state['state'] != 'authorized':
         return None, "Пользователь не авторизован"
     
+    user_state = await refresh_tokens(chat_id)    
     access_token = user_state.get('access_token')
     response = await main_api_client.make_request(method, endpoint, access_token, **kwargs)
     
