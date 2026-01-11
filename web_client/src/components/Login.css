@@ -1,0 +1,91 @@
+/* Стили для страницы авторизации */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.login-container {
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    text-align: center;
+    width: 100%;
+    max-width: 400px;
+}
+
+.login-container h2 {
+    color: #31649b;
+    margin-bottom: 20px;
+}
+
+.social-login {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.social-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 5px 0;
+    padding: 10px 15px;
+    background-color: #ffffff;
+    border: 1px solid #31649b;
+    border-radius: 5px;
+    color: #31649b;
+    font-size: 1rem;
+    text-decoration: none;
+    transition: background-color 0.3s, color 0.3s, transform 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.social-button:hover {
+    background-color: #31649b;
+    color: #ffffff;
+    transform: translateY(-2px);
+}
+
+/* Стили для текста регистрации */
+.registration-message {
+    margin-top: 20px;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.registration-message a {
+    color: #31649b;
+    text-decoration: none;
+}
+
+.registration-message a:hover {
+    text-decoration: underline;
+}
+
+/* Стили для поля ввода кода */
+.input-code {
+    width: 100%; /* Задаем ширину 100% */
+    padding: 10px; /* Добавляем внутренние отступы */
+    border: 1px solid #31649b; /* Цвет рамки */
+    border-radius: 5px; /* Скругление углов */
+    font-size: 16px; /* Размер шрифта */
+    box-sizing: border-box; /* Учитываем отступы и границы в ширине */
+    margin-top: 10px; /* Отступ сверху */
+    margin-bottom: 20px; /* Отступ снизу */
+    transition: border-color 0.3s; /* Плавный переход для изменения цвета границы */
+}
+
+.input-code:focus {
+    outline: none; /* Убираем стандартное выделение при фокусе */
+    border-color: #2e5e92; /* Изменяем цвет рамки при фокусе */
+}
