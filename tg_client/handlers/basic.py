@@ -106,17 +106,6 @@ async def refresh_command(message: Message):
     user_state['refresh_token'] = new_refresh_token
     set_user_state(chat_id, 'authorized', user_state)
     await message.answer("Токены обновлены.")
-
-
-@router.message(Command("tests"))
-async def tests_command(message: Message):
-    chat_id = message.chat.id
-    user_state = get_user_state(chat_id)
-
-    if user_state['state'] != 'authorized':
-        await message.answer("Вы не авторизованы.")
-    else:
-        await message.answer("Доступные тесты: [потом будет]") 
     
 
 @router.message()
