@@ -105,6 +105,9 @@ func main() {
 		codeService,
 		loginStore,
 	)
+	CodeLoginHandler := handlers.NewCodeLoginHandler(
+		codeService,
+	)
 	// ===== Auth routes =====
 	auth := r.Group("/auth")
 	{
@@ -120,6 +123,7 @@ func main() {
 
 		// 🔹 Проверка статуса login_token
 		auth.GET("/status", loginStatusHandler.Status)
+		auth.GET("login/code", CodeLoginHandler.Start)
 		auth.GET("/verify", tokenHandler.Verify)
 	}
 

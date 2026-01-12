@@ -36,7 +36,7 @@ func (h *GitHubCallbackHandler) Callback(c *gin.Context) {
 		return
 	}
 
-	// 2. login_token (мы передавали его в state)
+	// 2. login_token (state)
 	loginToken := c.Query("state")
 	if loginToken == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "no login token"})
@@ -44,7 +44,7 @@ func (h *GitHubCallbackHandler) Callback(c *gin.Context) {
 	}
 
 	// 3. exchange code -> GitHub access token
-	accessToken, err := h.githubService.ExchangeCode(
+	ghAccessToken, err := h.githubService.ExchangeCode(
 		c.Request.Context(),
 		code,
 	)
@@ -56,12 +56,14 @@ func (h *GitHubCallbackHandler) Callback(c *gin.Context) {
 	// 4. get GitHub user
 	guser, err := h.githubService.GetUser(
 		c.Request.Context(),
-		accessToken,
+		ghAccessToken,
 	)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 5. login / register user
 	user, err := h.authService.LoginWithGitHub(
 		c.Request.Context(),
 		guser.ID,
@@ -72,17 +74,11 @@ func (h *GitHubCallbackHandler) Callback(c *gin.Context) {
 		return
 	}
 
-	// 🔥 сохраняем UserID в login_token
 	h.store.AttachUser(loginToken, user.User.ID)
-	// 5. создаём 6-значный login code (code authentication)
-	loginCode := h.codeService.CreateCode(loginToken)
-
-	// 6. ВАЖНО: JWT НЕ выдаём здесь
+	// 8. ответ клиенту (Web / Telegram)
 	c.JSON(http.StatusOK, gin.H{
-		"message":    "enter this code to finish login",
-		"code":       loginCode,
-		"expires_in": 60,
-		"github_id":  guser.ID,    // можно оставить для дебага
-		"email":      guser.Email, // можно убрать позже
+		"status":    "ok",
+		"github_id": guser.ID,
+		"email":     guser.Email,
 	})
 }

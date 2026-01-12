@@ -73,15 +73,10 @@ func (h *YandexCallbackHandler) Callback(c *gin.Context) {
 		return
 	}
 	h.store.AttachUser(loginToken, user.User.ID)
-	// 5. создаём 6-значный login code
-	loginCode := h.codeService.CreateCode(loginToken)
 
-	// 6. JWT НЕ выдаём — только code
 	c.JSON(http.StatusOK, gin.H{
-		"message":    "enter this code to finish login",
-		"code":       loginCode,
-		"expires_in": 60,
-		"yandex_id":  yuser.ID,    // можно убрать позже
-		"email":      yuser.Email, // можно убрать позже
+		"status":    "ok",
+		"yandex_id": yuser.ID,
+		"email":     yuser.Email,
 	})
 }

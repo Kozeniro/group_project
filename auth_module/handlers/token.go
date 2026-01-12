@@ -15,7 +15,33 @@ type TokenHandler struct {
 	CodeService *services.CodeService
 	AuthService *services.AuthService
 }
+type CodeLoginHandler struct {
+	CodeService *services.CodeService
+}
 
+func NewCodeLoginHandler(
+	codeService *services.CodeService,
+) *CodeLoginHandler {
+	return &CodeLoginHandler{
+		CodeService: codeService,
+	}
+}
+func (h *CodeLoginHandler) Start(c *gin.Context) {
+	loginToken := c.Query("state")
+	if loginToken == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no login token"})
+		return
+	}
+
+	// создаём 6-значный код
+	code := h.CodeService.CreateCode(loginToken)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "enter this code to finish login",
+		"code":       code,
+		"expires_in": 60,
+	})
+}
 func NewTokenHandler(
 	store *login.Store,
 	codeService *services.CodeService,
