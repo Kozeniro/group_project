@@ -14,33 +14,38 @@ class AuthClient:
                 headers={'Content-Type': 'application/json'}
             )
         return self.client
-
-    async def create_login_token(self, login_type: str = "default") -> Optional[Dict[str, Any]]:
-        client = await self._get_client()        
-        payload = {"type": login_type} if login_type == "code" else {}
+           
+    
+    async def create_login_token(self) -> Optional[Dict[str, Any]]:
+        client = await self._get_client()
         
         response = await client.post(
             f"{self.base_url}/auth/login/token",
-            json=payload,
+            json={},
             timeout=10.0
-        )
+        )        
+        data = response.json()
+        return data
         
-        if response.status_code == 200:
-            data = response.json()
-            return data
-        else:
-            return None
-       
-    
-    async def verify_code(self, code: str, refresh_token: str = None) -> Dict:
-        client = await self._get_client()        
-        params = {"code": code}        
-        if refresh_token:
-            params["refresh_token"] = refresh_token        
 
+    async def get_code_for_token(self, login_token: str) -> Optional[Dict[str, Any]]:
+        client = await self._get_client()
+    
+        response = await client.get(
+            f"{self.base_url}/auth/login/code",
+            params={"state": login_token},
+            timeout=10.0
+        )                        
+        data = response.json()
+        return data
+    
+
+    async def verify_code(self, code: str) -> Dict:
+        client = await self._get_client()       
+    
         response = await client.get(
             f"{self.base_url}/auth/verify",
-            params=params,
+            params={"code": code},
             timeout=10.0
         )
                 
@@ -56,6 +61,28 @@ class AuthClient:
                 "details": response.text
             }
 
+    
+    async def get_github_auth_url(self, login_token: str):
+        client = await self._get_client()
+        response = await client.get(
+            f"{self.base_url}/auth/login/github",
+            params={"token": login_token},
+            follow_redirects=False,
+            timeout=10.0
+        )        
+        return response.headers.get('Location')
+
+    
+    async def get_yandex_auth_url(self, login_token: str):
+        client = await self._get_client()
+        response = await client.get(
+            f"{self.base_url}/auth/login/yandex",
+            params={"token": login_token},
+            follow_redirects=False,
+            timeout=10.0
+        )
+        return response.headers.get('Location')
+    
     
     async def check_login_status(self, login_token: str) -> Dict:
         client = await self._get_client()
@@ -73,32 +100,7 @@ class AuthClient:
                 "error": f"HTTP {response.status_code}",
                 "details": response.text
             }
-
-    
-    async def get_github_auth_url(self, login_token: str):
-        client = await self._get_client()
-        response = await client.get(
-            f"{self.base_url}/auth/login/github",
-            params={"token": login_token}
-        )        
-        return response.headers.get('Location')
-
-    
-    async def get_yandex_auth_url(self, login_token: str):
-        client = await self._get_client()
-        response = await client.get(
-            f"{self.base_url}/auth/login/yandex",
-            params={"token": login_token}
-        )
-        return response.headers.get('Location')
-    
-    async def check_login_status(self, login_token: str):
-        client = await self._get_client()
-        response = await client.get(
-            f"{self.base_url}/auth/status",
-            params={"login_token": login_token}
-        )
-        return response.json()
+        
     
     async def login_with_code(self, code: str, login_token: str):
         client = await self._get_client()
@@ -111,6 +113,7 @@ class AuthClient:
         )
         return response.json()
     
+    
     async def refresh_access_token(self, refresh_token: str):
         client = await self._get_client()
         response = await client.post(
@@ -119,25 +122,15 @@ class AuthClient:
         )
         return response.json()
     
+    
     async def logout(self, refresh_token: str):
         client = await self._get_client()
         response = await client.post(
             f"{self.base_url}/auth/logout",
-            json={"refresh_token": refresh_token}
+            json={"refresh_token": refresh_token},
+            timeout=10.0
         )            
         return response.status_code == 200
-    
-    async def get_user_info(self, access_token: str) -> Optional[Dict[str, Any]]:
-        client = await self._get_client()
-        response = await client.get(
-            f"{self.base_url}/protected/me",
-            headers={"Authorization": f"Bearer {access_token}"}
-        )
-        return response.json()
-    
-    async def close(self):
-        if self.client:
-            await self.client.aclose()
 
 
 auth_client = AuthClient()

@@ -1,9 +1,8 @@
 from aiogram import Router
 from aiogram.types import Message
-from aiogram.filters import Command, CommandObject
+from aiogram.filters import Command
 
-from utils.redis_utils import set_user_state, get_user_state, delete_user_state
-from utils.auth_client import auth_client
+from utils.redis_utils import set_user_state, get_user_state
 
 router = Router()
 
