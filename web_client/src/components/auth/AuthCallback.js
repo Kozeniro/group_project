@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 const AuthCallback = ({ setUserStatus }) => {
     const navigate = useNavigate();
@@ -8,21 +8,43 @@ const AuthCallback = ({ setUserStatus }) => {
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const code = params.get('code');
-        const state = params.get('state');
+        const returnedState = params.get('state');
+        const savedState = localStorage.getItem('auth_state');
 
-        axios
-            .post('/api/auth/callback', { code, state })
+        // Проверка наличия кода и соответствия состояния
+        if (!code || returnedState !== savedState) {
+            console.error('Код авторизации отсутствует или состояние не совпадает.');
+            navigate('/login');
+            return;
+        }
+
+        // Удаление сохраненного состояния
+        localStorage.removeItem('auth_state');
+        
+        console.log('Отправка кода:', code, 'и состояния:', returnedState);
+        
+        // Отправка POST-запроса на сервер
+        axios.post('/api/auth/callback', { code, state: returnedState })
             .then((response) => {
-                document.cookie = `session_token=${response.data.sessionToken}; path=/`;
-                setUserStatus(response.data.status); // 'anonymous' или 'authorized'
-                navigate('/dashboard');
+                if (response.data && response.data.success) {
+                    // Установка состояния пользователя
+                    setUserStatus('authorized'); 
+                    console.log('Авторизация успешна:', response.data);
+                    
+                    // Перенаправление на страницу Dashboard
+                    navigate('/dashboard');
+                } else {
+                    console.error('Ошибка авторизации:', response.data);
+                    navigate('/login'); // Перенаправление на страницу логина
+                }
             })
-            .catch(() => {
-                navigate('/error');
+            .catch((error) => {
+                console.error('Ошибка при авторизации:', error);
+                navigate('/error'); // Перенаправление на страницу ошибки
             });
-    }, [setUserStatus, navigate]);
+    }, [navigate, setUserStatus]);
 
-    return <div>Загрузка...</div>;
+    return null;
 };
 
 export default AuthCallback;

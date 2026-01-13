@@ -1,19 +1,22 @@
 import React from 'react';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 const YandexAuth = () => {
-    const clientId = "60712c9fe7104b4aa8ee392ad5a96c02";
-    const redirectUri = "http://localhost:3000/auth/yandex/callback";
     const navigate = useNavigate();
 
-    const handleYandexAuth = () => {
-
-        window.location.href = `https://oauth.yandex.ru/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}`;
-    };
-
-    // После получения данных пользователя (в вашем callback обработчике)
-    const handleLoginSuccess = () => {
-        navigate('/dashboard'); // Перенаправляем пользователя в личный кабинет
+    const handleYandexAuth = async () => {
+        try {
+            // Запрос на получение URL авторизации от вашего сервера
+            const response = await axios.get('/api/auth/login?type=yandex');
+            const authUrl = response.data.authUrl;
+            // Перенаправляем пользователя на страницу авторизации через Яндекс
+            window.location.href = authUrl;
+        } catch (err) {
+            console.error("Ошибка при получении URL авторизации:", err);
+            // Перенаправляем на страницу ошибки с сообщением
+            navigate('/auth-error', { state: { message: 'Не удалось получить ссылку для авторизации через Яндекс. Попробуйте еще раз.' } });
+        }
     };
 
     return (
@@ -23,3 +26,5 @@ const YandexAuth = () => {
         </button>
     );
 };
+
+export default YandexAuth;
