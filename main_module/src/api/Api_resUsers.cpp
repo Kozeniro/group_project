@@ -2,10 +2,10 @@
 
 Api_resUsers::Api_resUsers(ResourceUsers& resUsers, PermissionChecker& permChecker) : resUsers(resUsers), permChecker(permChecker) {};
 
-void Api_resUsers::create(const httplib::Request& req, httplib::Response& res) {
-	int user_id = std::stoi(req.get_param_value("id"));
-	std::string name = req.get_param_value("name");
-	resUsers.create(user_id, name);
+void Api_resUsers::get_user_id(const httplib::Request& req, httplib::Response& res) {
+	std::string auth_id = req.get_param_value("auth_id");
+	int user_id = resUsers.get_user_id(auth_id);
+	res.set_content(std::to_string(user_id), "text/plain");
 }
 
 void Api_resUsers::get_all(const httplib::Request& req, httplib::Response& res) {

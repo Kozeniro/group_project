@@ -11,7 +11,8 @@ void create_tables(pqxx::connection& conn){
 				query = "\
 					CREATE TABLE "+t+" (\
 						id SERIAL PRIMARY KEY,\
-						full_name VARCHAR(255) NOT NULL,\
+						auth_id VARCHAR(255) NOT NULL, \
+						full_name VARCHAR(255),\
 						is_blocked BOOLEAN NOT NULL DEFAULT FALSE\
 					);";
 			else if (t=="roles")

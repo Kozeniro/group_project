@@ -1,14 +1,13 @@
 #include "ResourceUsers.h"
 
 ResourceUsers::ResourceUsers(pqxx::connection& conn):conn(conn) {};
-// 0. Создать пользователя
-void ResourceUsers::create(int user_id, const std::string& name) {
+// 0. Получить id по auth_id
+int ResourceUsers::get_user_id(std::string auth_id) {
     pqxx::work txn(conn);
-    pqxx::result res = txn.exec_params(
-        "INSERT INTO users (id, full_name) VALUES ($1, $2)",
-        user_id, name
-    );
+    pqxx::result res = txn.exec_params("SELECT id FROM users WHERE auth_id = $1", auth_id);
+	if (res.empty()) res = txn.exec_params("INSERT INTO users (auth_id) VALUES ($1) RETURNING id",auth_id);
     txn.commit();
+	return res[0][0].as<int>();
 }
 
 // 1. Посмотреть список пользователей
