@@ -13,32 +13,47 @@ class MainAPIClient:
     
     async def make_request(self, method: str, endpoint: str, access_token: str, **kwargs):
         client = await self._get_client()
-        headers = {"Authorization": f"Bearer {access_token}"}        
+        headers = {"Authorization": f"Bearer {access_token}"}
         
-        if method == "GET":
-            response = await client.get(
-                f"{self.base_url}{endpoint}",
-                headers=headers,
-                params=kwargs.get('params')
-            )
-        elif method == "POST":
-            response = await client.post(
-                f"{self.base_url}{endpoint}",
-                headers=headers,
-                json=kwargs.get('data')
-            )
-        elif method == "PUT":
-            response = await client.put(
-                f"{self.base_url}{endpoint}",
-                headers=headers,
-                json=kwargs.get('data')
-            )
-        elif method == "DELETE":
-            response = await client.delete(
-                f"{self.base_url}{endpoint}",
-                headers=headers
-            )        
-        return response
+        print(f"DEBUG main_api: Making {method} request to {endpoint}")
+        print(f"DEBUG main_api: Headers: {headers}")
+        
+        try:
+            if method == "GET":
+                response = await client.get(
+                    f"{self.base_url}{endpoint}",
+                    headers=headers,
+                    params=kwargs.get('params'),
+                    timeout=10.0
+                )
+            elif method == "POST":
+                response = await client.post(
+                    f"{self.base_url}{endpoint}",
+                    headers=headers,
+                    json=kwargs.get('data'),
+                    timeout=10.0
+                )
+            elif method == "PUT":
+                response = await client.put(
+                    f"{self.base_url}{endpoint}",
+                    headers=headers,
+                    json=kwargs.get('data'),
+                    timeout=10.0
+                )
+            elif method == "DELETE":
+                response = await client.delete(
+                    f"{self.base_url}{endpoint}",
+                    headers=headers,
+                    timeout=10.0
+                )
+            
+            print(f"DEBUG main_api: Response status: {response.status_code}")
+            print(f"DEBUG main_api: Response body: {response.text[:200]}")
+            
+            return response
+        except Exception as e:
+            print(f"DEBUG main_api: Exception: {e}")
+            raise
     
     #Пользователи
     async def get_all_users(self, access_token: str):

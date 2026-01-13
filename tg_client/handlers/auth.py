@@ -3,6 +3,7 @@ from aiogram.filters import Command, CommandObject
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from datetime import datetime
 import json
+import jwt
 
 from utils.redis_utils import set_user_state, get_user_state, delete_user_state, save_login_token, get_login_token, delete_login_token
 from utils.auth_client import auth_client
@@ -211,10 +212,10 @@ async def enter_code_command(message: Message, command: CommandObject = None):
     code = command.args.strip()
     chat_id = message.chat.id
     
+    await message.answer(f"Проверяю код: {code}")
     if not code.isdigit() or len(code) != 6:
         await message.answer("Код должен состоять из 6 цифр")
         return
-    
     result = await auth_client.verify_code(code)
     
     if result.get('success'):
@@ -222,7 +223,16 @@ async def enter_code_command(message: Message, command: CommandObject = None):
         
         access_token = data.get('access_token')
         refresh_token = data.get('refresh_token')
-        user_id = data.get('user_id')
+        
+        if not access_token or not refresh_token:
+            await message.answer("Ошибка: не получены токены")
+            return
+        
+        try:
+            decoded = jwt.decode(access_token, options={"verify_signature": False})
+            user_id = decoded.get('user_id')
+        except Exception as e:
+            user_id = None
         
         set_user_state(chat_id, 'authorized', {
             'access_token': access_token,
@@ -232,7 +242,7 @@ async def enter_code_command(message: Message, command: CommandObject = None):
         })
         
         await message.answer(
-            "Успешная авторизация."
+            f"Успешная авторизация.\nUser ID: {user_id}"
         )
     else:
         error_msg = result.get('error', 'Неизвестная ошибка')
@@ -257,14 +267,25 @@ async def check_status_handler(callback: CallbackQuery):
     elif status == 'authorized':
         access_token = status_data.get('access_token')
         refresh_token = status_data.get('refresh_token')
-        user_id = status_data.get('user_id')
-
+        
+        if not access_token or not refresh_token:
+            await delete_and_send(
+                callback,
+                "Ошибка: не получены токены от сервера авторизации"
+            )
+            return
+        
+        try:
+            decoded = jwt.decode(access_token, options={"verify_signature": False})
+            user_id = decoded.get('user_id')
+        except Exception as e:
+            user_id = None
+        
         set_user_state(chat_id, 'authorized', {
             'access_token': access_token,
             'refresh_token': refresh_token,
             'user_id': user_id,
-            'authorized_at': datetime.now().isoformat(),
-            'login_token': None
+            'authorized_at': datetime.now().isoformat()
         })
         
         user_state = get_user_state(chat_id)
@@ -274,8 +295,7 @@ async def check_status_handler(callback: CallbackQuery):
         
         await delete_and_send(
             callback,
-            "Успешная авторизация.\n"
-            f"User ID: `{user_id}`"
+            f"Успешная авторизация.\nID: {user_id}"
         )
     
     elif status == 'expired':
@@ -288,8 +308,7 @@ async def check_status_handler(callback: CallbackQuery):
         delete_user_state(chat_id)
         await delete_and_send(
             callback,
-            "Авторизация отклонена.\n"
-            "Попробуйте снова: /login"
+            "Авторизация отклонена.\nПопробуйте снова: /login"
         )
 
 
@@ -339,3 +358,56 @@ async def logout_command(message: Message, command: CommandObject = None):
     else:
         delete_user_state(chat_id)
         await message.answer("Сеанс завершён.")
+
+@router.message(Command("debug"))
+async def debug_command(message: Message):
+    chat_id = message.chat.id
+    user_state = get_user_state(chat_id)
+    
+    response = f"Статус: {user_state['state']}\n"
+    
+    if user_state['state'] == 'authorized':
+        access_token = user_state.get('access_token', '')
+        refresh_token = user_state.get('refresh_token', '')
+        user_id = user_state.get('user_id', 'нет')
+        
+        response += f"User ID: {user_id}\n"
+        response += f"Access token: {access_token[:30] if access_token else 'нет'}...\n"
+        response += f"Refresh token: {refresh_token[:30] if refresh_token else 'нет'}...\n"
+        
+        if access_token:
+            try:
+                decoded = jwt.decode(access_token, options={"verify_signature": False})
+                response += f"\nJWT payload:\n"
+                for key, value in decoded.items():
+                    response += f"  {key}: {value}\n"
+            except Exception as e:
+                response += f"\nОшибка декодирования JWT: {e}\n"
+    
+    await message.answer(response)
+
+@router.message(Command("my_permissions"))
+async def my_permissions_command(message: Message):
+    chat_id = message.chat.id
+    user_state = get_user_state(chat_id)
+    
+    if user_state['state'] != 'authorized':
+        await message.answer("Сначала авторизуйтесь: /login")
+        return
+    
+    access_token = user_state.get('access_token')
+    
+    try:
+        decoded = jwt.decode(access_token, options={"verify_signature": False})
+        permissions = decoded.get('permissions', [])
+        roles = decoded.get('roles', [])
+        
+        response = f"Ваши права:\n\n"
+        response += f"Роли: {', '.join(roles) if roles else 'нет'}\n"
+        response += f"Права ({len(permissions)}):\n"
+        for perm in permissions:
+            response += f"  • {perm}\n"
+        
+        await message.answer(response)
+    except Exception as e:
+        await message.answer(f"Ошибка получения прав: {e}")

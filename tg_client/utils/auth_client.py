@@ -40,14 +40,19 @@ class AuthClient:
         return data
     
 
+
     async def verify_code(self, code: str) -> Dict:
         client = await self._get_client()       
-    
+        
+        print(f"DEBUG: Verifying code: {code}")
         response = await client.get(
             f"{self.base_url}/auth/verify",
             params={"code": code},
             timeout=10.0
         )
+        
+        print(f"DEBUG: Verify code response: {response.status_code}")
+        print(f"DEBUG: Response body: {response.text}")
                 
         if response.status_code == 200:
             return {
@@ -87,16 +92,45 @@ class AuthClient:
     async def check_login_status(self, login_token: str) -> Dict:
         client = await self._get_client()
         
+        print(f"DEBUG: Checking login status for token: {login_token}")
         response = await client.get(
             f"{self.base_url}/auth/status",
             params={"login_token": login_token},
             timeout=10.0
         )
         
+        print(f"DEBUG: Status check response: {response.status_code}")
+        print(f"DEBUG: Response body: {response.text}")
+        
         if response.status_code == 200:
             return response.json()
         else:
             return {
+                "error": f"HTTP {response.status_code}",
+                "details": response.text
+            }
+
+    async def verify_code(self, code: str) -> Dict:
+        client = await self._get_client()       
+        
+        print(f"DEBUG: Verifying code: {code}")
+        response = await client.get(
+            f"{self.base_url}/auth/verify",
+            params={"code": code},
+            timeout=10.0
+        )
+        
+        print(f"DEBUG: Verify code response: {response.status_code}")
+        print(f"DEBUG: Response body: {response.text}")
+                
+        if response.status_code == 200:
+            return {
+                "success": True,
+                "data": response.json()
+            }
+        else:
+            return {
+                "success": False,
                 "error": f"HTTP {response.status_code}",
                 "details": response.text
             }

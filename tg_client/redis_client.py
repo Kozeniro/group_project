@@ -1,13 +1,14 @@
 import redis    
 import json
 from datetime import datetime
+from utils.config import Config
 
 class RedisClient:
     def __init__(self):
         self.redis = redis.Redis(
-            host='localhost',
-            port=6379,
-            db=0,
+            host=Config.REDIS_HOST,
+            port=Config.REDIS_PORT,
+            db=Config.REDIS_DB,
             decode_responses=True 
         )  
     

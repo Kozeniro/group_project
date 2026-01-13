@@ -2,3 +2,5 @@ aiogram
 python-dotenv
 redis
 httpx
+jwt
+PyJWT
