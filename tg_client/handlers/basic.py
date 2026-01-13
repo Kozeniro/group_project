@@ -45,12 +45,22 @@ async def help_command(message: Message):
                          
 Чтобы авторизороваться:
 /login - войти
-/logout - выйти
+/enter_code [код] - ввести код
                                       
 Для авторизованных:
-/tests
+/profile - мой профиль
+/mycourses - мои курсы
+/mytests - мои тесты
+/myscores - мои оценки
+/courses - все курсы
+/course [id] - информация о курсе
+/tests - все тесты
+/test [id] - информация о тесте
+/questions - все вопросы
+/refresh - обновить токены
+/logout - выйти
+/logout all=true - выйти на всех устройствах
     """)
-
 
 @router.message(Command("status"))
 async def status_command(message: Message):

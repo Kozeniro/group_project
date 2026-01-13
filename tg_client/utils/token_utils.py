@@ -43,6 +43,13 @@ async def make_authorized_request(chat_id: str, method: str, endpoint: str, **kw
     
     user_state = await refresh_tokens(chat_id)    
     access_token = user_state.get('access_token')
+    
+    if endpoint == "/api/users/me":
+        user_id = user_state.get('user_id')
+        if not user_id:
+            return None, "Не удалось получить ID пользователя"
+        endpoint = f"/api/users/{user_id}"
+    
     response = await main_api_client.make_request(method, endpoint, access_token, **kwargs)
     
     if response.status_code == 200:
@@ -53,3 +60,7 @@ async def make_authorized_request(chat_id: str, method: str, endpoint: str, **kw
         return None, "Ошибка авторизации"
     elif response.status_code == 404:
         return None, "Ресурс не найден"
+    elif response.status_code == 400:
+        return None, "Неверный запрос"
+    else:
+        return None, f"Ошибка: {response.status_code}"
