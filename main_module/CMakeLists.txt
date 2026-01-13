@@ -25,7 +25,6 @@ add_executable(main_module src/main.cpp
     src/api/Api_resTests.cpp
     src/api/Api_resUsers.cpp
 
-    src/register_routes.cpp
     src/PermissionChecker.cpp
     src/create_tables.cpp
 )
