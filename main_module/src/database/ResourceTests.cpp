@@ -2,6 +2,24 @@
 
 ResourceTests::ResourceTests(pqxx::connection& conn) :conn(conn) {}
 
+// 0. Получить id преподавателя курса с данным тестом
+int ResourceTests::get_instructor(int test_id){
+    pqxx::work txn(conn);
+    pqxx::result instructor_id = txn.exec_params("SELECT c.instructor_id FROM tests t \
+        JOIN courses c ON t.course_id = c.id WHERE t.id = $1",
+        test_id
+    );
+    return instructor_id[0][0].as<int>();
+}
+// 0.0. Получить id автора вопроса
+int ResourceTests::get_author(int question_id){
+    pqxx::work txn(conn);
+    pqxx::result author_id = txn.exec_params("SELECT author_id FROM questions WHERE local_id = $1",
+        question_id
+    );
+    return author_id[0][0].as<int>();
+}
+
 // 1.Удалить вопрос из теста
 void ResourceTests::remove_question(int test_id, int question_id) {
     pqxx::work txn(conn);
@@ -100,7 +118,7 @@ std::vector<UserAnswers> ResourceTests::get_users_answers(int test_id) {
         int attempt_id = attempt["id"].as<int>();
 
         pqxx::result q_a_res = txn.exec_params("SELECT q.text, q.options, answer_option FROM answers \
-            JOIN questions q ON question_id = q.id AND question_version = q.version WHERE attempt_id = $1",
+            JOIN questions q ON question_id = q.local_id AND question_version = q.version WHERE attempt_id = $1",
             attempt_id
         );
 

@@ -1,9 +1,16 @@
 #include "PermissionChecker.h"
 
+
 PermissionChecker::PermissionChecker(ResourceUsers& resUsers): resUsers(resUsers){}
 
-PermissionInfo PermissionChecker::check(const std::string& token, const std::string& permission){
+PermissionInfo PermissionChecker::check(const httplib::Request& req, const std::string& permission){
     PermissionInfo info;
+    auto auth_header = req.get_header_value("Authorization");
+    if (auth_header.substr(0, 7) != "Bearer ") {
+        info.status = 401;
+        return info;
+    }
+    std::string token = auth_header.substr(7);
     auto decoded = jwt::decode(token);
     try {
         auto verifier = jwt::verify()
@@ -15,22 +22,26 @@ PermissionInfo PermissionChecker::check(const std::string& token, const std::str
             return info;
         }
         info.user_id = std::stoi(decoded.get_payload_claim("user_id").as_string());
-        auto permissions = decoded.get_payload_claim("permissions").as_array();
-        bool has_permission = false;
-        
-        for (const auto& p : permissions) {
-            if (p.get<std::string>() == permission) {
-                has_permission = true;
-                break;
-            }
-        }
-        if (!has_permission) {
-            info.status = 403;
-            return info;
-        }
         if (resUsers.is_blocked(info.user_id)){
             info.status = 418;
+            return info;
         }
+        
+        if (permission!=std::string("")){
+            auto permissions = decoded.get_payload_claim("permissions").as_array();
+            bool has_permission = false;
+            for (const auto& p : permissions) {
+                if (p.get<std::string>() == permission) {
+                    has_permission = true;
+                    break;
+                } 
+            }
+            if (!has_permission) {
+                info.status = 403;
+                return info;
+            }
+        }
+        
 
         info.status = 200;
     }catch (...) {

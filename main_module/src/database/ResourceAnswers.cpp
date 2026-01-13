@@ -2,6 +2,26 @@
 
 ResourceAnswers::ResourceAnswers(pqxx::connection& connection) : conn(connection) {}
 
+// 0. Получить id пользователя
+int ResourceAnswers::get_user(int answer_id){
+    pqxx::work txn(conn);
+    pqxx::result res = txn.exec_params("SELECT a.user_id FROM answers ans \
+        JOIN attempts a ON ans.attempt_id = a.id WHERE ans.id = $1",
+        answer_id
+    );
+    return res[0][0].as<int>();
+}
+// 0.0. Получить id преподавателя дисциплины
+int ResourceAnswers::get_instructor(int answer_id){
+    pqxx::work txn(conn);
+    pqxx::result res = txn.exec_params("SELECT c.instructor_id FROM answers a JOIN questions q ON a.question_id = q.id \
+        JOIN tests_questions tq ON q.id = tq.question_id JOIN tests t ON tq.test_id = t.id \
+        JOIN courses c ON t.course_id = c.id WHERE a.id = $1",
+        answer_id
+    );
+    return res[0][0].as<int>();
+}
+
 // 1. Создать ответ
 void ResourceAnswers::create_answer(int attempt_id, int question_id) {
     pqxx::work txn(conn);

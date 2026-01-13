@@ -24,6 +24,8 @@ private:
 	pqxx::connection& conn;
 public:
 	ResourceTests(pqxx::connection& conn);
+	int get_instructor(int test_id);
+	int get_author(int question_id);
 	void remove_question(int test_id, int question_id);
 	void add_question(int test_id, int question_id);
 	void set_question_order(int test_id, const std::vector<int>& question_ids);

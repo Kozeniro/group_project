@@ -2,6 +2,16 @@
 
 ResourceQuestions::ResourceQuestions(pqxx::connection& conn) : conn(conn) {}
 
+// 0.Проверить наличие вопроса у пользователя
+bool ResourceQuestions::check_presence(int question_id, int user_id) {
+    pqxx::work txn(conn);
+    pqxx::result res = txn.exec_params("SELECT EXISTS (SELECT 1 FROM attempts a \
+        JOIN tests_questions tq ON a.test_id = tq.test_id WHERE a.user_id = $1 AND tq.question_id = $2);",
+        user_id, question_id
+    );
+    return res[0][0].as<bool>();
+}
+
 // 1.Посмотреть список вопросов 
 std::vector<QuestionLine> ResourceQuestions::get_all() {
     std::vector<QuestionLine> questions;
@@ -20,7 +30,7 @@ std::vector<QuestionLine> ResourceQuestions::get_all() {
 QuestionInfo ResourceQuestions::get_info(int question_id, int version) {
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params(
-        "SELECT name, text, options, correct_option FROM questions \
+        "SELECT name, text, options, correct_option, author_id FROM questions \
         WHERE id = $1 AND version = $2 AND is_exists = TRUE",
         question_id, version
     );
@@ -28,7 +38,9 @@ QuestionInfo ResourceQuestions::get_info(int question_id, int version) {
         res[0]["name"].as<std::string>(),
         res[0]["text"].as<std::string>(),
         nlohmann::json::parse(res[0]["options"].as<std::string>()),
-        res[0]["correct_option"].as<int>()
+        res[0]["correct_option"].as<int>(),
+
+        res[0]["author_id"].as<int>() //system
     };
 }
 
@@ -65,7 +77,7 @@ void ResourceQuestions::delete_question(int question_id) {
     );
     if (!(is_in_tests[0][0].as<bool>())) {
         txn.exec_params(
-            "UPDATE questions SET is_exists = FALSE WHERE id = $1",
+            "UPDATE questions SET is_exists = FALSE WHERE local_id = $1",
             question_id
         );
     }

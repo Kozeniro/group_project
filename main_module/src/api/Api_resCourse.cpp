@@ -1,9 +1,14 @@
 #include "Api_resCourse.h"
 
 
-Api_resCourse::Api_resCourse(ResourceCourse& resCourse) : resCourse(resCourse) {};
+Api_resCourse::Api_resCourse(ResourceCourse& resCourse, PermissionChecker& permChecker) : resCourse(resCourse), permChecker(permChecker) {};
 
 void Api_resCourse::get_all(const httplib::Request& req, httplib::Response& res) {
+	PermissionInfo p_info = permChecker.check(req, "");
+	if (p_info.status==401 || p_info.status==418) {
+		res.status = p_info.status; return;
+	}
+	
 	auto courses = resCourse.get_all();
 	nlohmann::json json_res = nlohmann::json::array();
 	for (const auto& course : courses) {
@@ -15,6 +20,11 @@ void Api_resCourse::get_all(const httplib::Request& req, httplib::Response& res)
 }
 
 void Api_resCourse::get_info(const httplib::Request& req, httplib::Response& res) {
+	PermissionInfo p_info = permChecker.check(req, "");
+	if (p_info.status==401 || p_info.status==418) {
+		res.status = p_info.status; return;
+	}
+	
 	int course_id = std::stoi(req.matches[1]);
 	auto info = resCourse.get_info(course_id);
 	nlohmann::json json_res = { {"name", info.name},{"description", info.description},{"instructor_id", info.instructor_id} };
@@ -22,14 +32,34 @@ void Api_resCourse::get_info(const httplib::Request& req, httplib::Response& res
 }
 
 void Api_resCourse::update_info(const httplib::Request& req, httplib::Response& res) {
-	int id = std::stoi(req.matches[1]);
+	PermissionInfo p_info = permChecker.check(req, "course:info:write");
+	if (p_info.status==401 || p_info.status==418) {
+		res.status = p_info.status; return;
+	}
+	int course_id = std::stoi(req.matches[1]);
+	auto info = resCourse.get_info(course_id);
+	if (p_info.status==403 && info.instructor_id != p_info.user_id){
+		res.status = p_info.status; return;
+	}
+	
 	std::string name = req.get_param_value("name");
 	std::string description = req.get_param_value("description");
-	resCourse.update_info(id, name, description);
+	resCourse.update_info(course_id, name, description);
 }
 
 void Api_resCourse::get_tests(const httplib::Request& req, httplib::Response& res) {
+	PermissionInfo p_info = permChecker.check(req, "course:testList");
+	if (p_info.status==401 || p_info.status==418) {
+		res.status = p_info.status; return;
+	}
 	int course_id = std::stoi(req.matches[1]);
+	auto info = resCourse.get_info(course_id);
+	auto students = resCourse.get_students(course_id);
+	if (p_info.status==403 && 
+		(info.instructor_id != p_info.user_id && std::find(students.begin(),students.end(),p_info.user_id)==students.end())){
+		res.status = p_info.status; return;
+	}
+	
 	auto tests = resCourse.get_tests(course_id);
 	nlohmann::json json_res = nlohmann::json::array();
 	for (const auto& test : tests) {
@@ -39,34 +69,81 @@ void Api_resCourse::get_tests(const httplib::Request& req, httplib::Response& re
 }
 
 void Api_resCourse::is_test_active(const httplib::Request& req, httplib::Response& res) {
+	PermissionInfo p_info = permChecker.check(req, "course:test:read");
+	if (p_info.status==401 || p_info.status==418) {
+		res.status = p_info.status; return;
+	}
 	int course_id = std::stoi(req.matches[1]);
+	auto info = resCourse.get_info(course_id);
+	auto students = resCourse.get_students(course_id);
+	if (p_info.status==403 && 
+		(info.instructor_id != p_info.user_id && std::find(students.begin(),students.end(),p_info.user_id)==students.end())){
+		res.status = p_info.status; return;
+	}
+
 	int test_id = std::stoi(req.matches[2]);
 	bool is_active = resCourse.is_test_active(course_id, test_id);
 	res.set_content(is_active ? "true" : "false", "text/plain");
 }
 
 void Api_resCourse::set_test_active(const httplib::Request& req, httplib::Response& res) {
+	PermissionInfo p_info = permChecker.check(req, "course:test:write");
+	if (p_info.status==401 || p_info.status==418) {
+		res.status = p_info.status; return;
+	}
 	int course_id = std::stoi(req.matches[1]);
+	auto info = resCourse.get_info(course_id);
+	if (p_info.status==403 && info.instructor_id != p_info.user_id){
+		res.status = p_info.status; return;
+	}
+	
 	int test_id = std::stoi(req.matches[2]);
 	bool active = req.get_param_value("active") == "true";
 	resCourse.set_test_active(course_id, test_id, active);
 }
 
 void Api_resCourse::add_test(const httplib::Request& req, httplib::Response& res) {
+	PermissionInfo p_info = permChecker.check(req, "course:test:add");
+	if (p_info.status==401 || p_info.status==418) {
+		res.status = p_info.status; return;
+	}
 	int course_id = std::stoi(req.matches[1]);
+	auto info = resCourse.get_info(course_id);
+	if (p_info.status==403 && info.instructor_id != p_info.user_id){
+		res.status = p_info.status; return;
+	}
+	
 	std::string test_name = req.get_param_value("test_name");
 	int new_test_id = resCourse.add_test(course_id, test_name);
 	res.set_content(std::to_string(new_test_id), "text/plain");
 }
 
 void Api_resCourse::remove_test(const httplib::Request& req, httplib::Response& res) {
+	PermissionInfo p_info = permChecker.check(req, "course:test:del");
+	if (p_info.status==401 || p_info.status==418) {
+		res.status = p_info.status; return;
+	}
 	int course_id = std::stoi(req.matches[1]);
+	auto info = resCourse.get_info(course_id);
+	if (p_info.status==403 && info.instructor_id != p_info.user_id){
+		res.status = p_info.status; return;
+	}
+
 	int test_id = std::stoi(req.matches[2]);
 	resCourse.remove_test(course_id, test_id);
 }
 
 void Api_resCourse::get_students(const httplib::Request& req, httplib::Response& res) {
+	PermissionInfo p_info = permChecker.check(req, "course:userList");
+	if (p_info.status==401 || p_info.status==418) {
+		res.status = p_info.status; return;
+	}
 	int course_id = std::stoi(req.matches[1]);
+	auto info = resCourse.get_info(course_id);
+	if (p_info.status==403 && info.instructor_id != p_info.user_id){
+		res.status = p_info.status; return;
+	}
+	
 	auto students = resCourse.get_students(course_id);
 	nlohmann::json json_res = students;
 	res.set_content(json_res.dump(), "application/json");
@@ -74,20 +151,39 @@ void Api_resCourse::get_students(const httplib::Request& req, httplib::Response&
 
 
 void Api_resCourse::add_user(const httplib::Request& req, httplib::Response& res) {
+	PermissionInfo p_info = permChecker.check(req, "course:user:add");
 	int course_id = std::stoi(req.matches[1]);
 	int user_id = std::stoi(req.get_param_value("user_id"));
+	if (p_info.status==401 || p_info.status==418) {
+		res.status = p_info.status; return;
+	}
+	if (p_info.status==403 && user_id != p_info.user_id){
+		res.status = p_info.status; return;
+	}
 	resCourse.add_user(user_id, course_id);
 }
 
 
 void Api_resCourse::remove_user(const httplib::Request& req, httplib::Response& res) {
+	PermissionInfo p_info = permChecker.check(req, "course:user:del");
 	int course_id = std::stoi(req.matches[1]);
 	int user_id = std::stoi(req.get_param_value("user_id"));
+	if (p_info.status==401 || p_info.status==418) {
+		res.status = p_info.status; return;
+	}
+	if (p_info.status==403 && user_id != p_info.user_id){
+		res.status = p_info.status; return;
+	}
 	resCourse.remove_user(user_id, course_id);
 }
 
 
 void Api_resCourse::create_course(const httplib::Request& req, httplib::Response& res) {
+	PermissionInfo p_info = permChecker.check(req, "course:add");
+	if (p_info.status != 200) {
+		res.status = p_info.status; return;
+	}
+	
 	std::string name = req.get_param_value("name");
 	std::string description = req.get_param_value("description");
 	int instructor_id = std::stoi(req.get_param_value("instructor_id"));
@@ -96,6 +192,14 @@ void Api_resCourse::create_course(const httplib::Request& req, httplib::Response
 }
 
 void Api_resCourse::delete_course(const httplib::Request& req, httplib::Response& res) {
+	PermissionInfo p_info = permChecker.check(req, "course:del");
+	if (p_info.status==401 || p_info.status==418) {
+		res.status = p_info.status; return;
+	}
 	int course_id = std::stoi(req.matches[1]);
+	auto info = resCourse.get_info(course_id);
+	if (p_info.status==403 && info.instructor_id != p_info.user_id){
+		res.status = p_info.status; return;
+	}
 	resCourse.delete_course(course_id);
 }

@@ -1,14 +1,15 @@
 #pragma once
 #include "ResourceCourse.h"
-
+#include "PermissionChecker.h"
 #include "httplib.h"
 #include "json.hpp"
 
 class Api_resCourse {
 private:
 	ResourceCourse& resCourse;
+	PermissionChecker& permChecker;
 public:
-	Api_resCourse(ResourceCourse& resCourse);
+	Api_resCourse(ResourceCourse& resCourse, PermissionChecker& permChecker);
 	void get_all(const httplib::Request& req, httplib::Response& res);
 	void get_info(const httplib::Request& req, httplib::Response& res);
 	void update_info(const httplib::Request& req, httplib::Response& res);
