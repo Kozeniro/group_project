@@ -87,7 +87,12 @@ func main() {
 		authMiddleware.RequirePermission("user.create"),
 		handlers.CreateUserHandler,
 	)
+	changeRoleHandler := handlers.NewChangeMyRoleHandler(authService)
 
+	r.POST("/me/role",
+		authMiddleware.RequireAuth(),
+		changeRoleHandler.Handle,
+	)
 	tokenHandler := handlers.NewTokenHandler(
 		loginStore,
 		codeService,

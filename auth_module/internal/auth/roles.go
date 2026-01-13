@@ -1,13 +1,18 @@
 package auth
 
 const (
-	RoleUser  = "student"
-	RoleAdmin = "admin"
+	RoleUser    = "student"
+	RoleTeacher = "teacher"
+	RoleAdmin   = "admin"
 )
 
 var RolePermissions = map[string][]string{
 	RoleUser: {
 		"profile.read",
+	},
+	RoleTeacher: {
+		"profile.read",
+		"profile.write",
 	},
 	RoleAdmin: {
 		"profile.read",

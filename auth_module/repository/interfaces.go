@@ -15,4 +15,5 @@ type UserRepository interface {
 	FindByID(ctx context.Context, id string) (*models.User, error)
 	FindByGitHubID(ctx context.Context, githubID int64) (*models.User, error)
 	FindByYandexID(ctx context.Context, yandexID string) (*models.User, error)
+	UpdateRole(ctx context.Context, userID string, role string) error
 }

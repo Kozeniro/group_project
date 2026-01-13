@@ -50,7 +50,11 @@ func (m *AuthMiddleware) RequireRole(role string) gin.HandlerFunc {
 			return
 		}
 
-		roles := rolesAny.([]string)
+		roles, ok := rolesAny.([]string)
+		if !ok {
+			c.AbortWithStatus(http.StatusForbidden)
+			return
+		}
 		for _, r := range roles {
 			if r == role {
 				c.Next()
@@ -69,8 +73,11 @@ func (m *AuthMiddleware) RequirePermission(permission string) gin.HandlerFunc {
 			return
 		}
 
-		perms := permsAny.([]string)
-
+		perms, ok := permsAny.([]string)
+		if !ok {
+			c.AbortWithStatus(http.StatusForbidden)
+			return
+		}
 		for _, p := range perms {
 			if p == permission {
 				c.Next()

@@ -88,3 +88,26 @@ func (r *MongoUserRepository) FindByYandexID(ctx context.Context, yandexID strin
 
 	return &user, err
 }
+func (r *MongoUserRepository) UpdateRole(
+	ctx context.Context,
+	userID string,
+	role string,
+) error {
+
+	objectID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return err
+	}
+
+	_, err = r.collection.UpdateOne(
+		ctx,
+		bson.M{"_id": objectID},
+		bson.M{
+			"$set": bson.M{
+				"roles": []string{role},
+			},
+		},
+	)
+
+	return err
+}
