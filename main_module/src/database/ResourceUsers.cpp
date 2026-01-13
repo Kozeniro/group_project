@@ -111,7 +111,8 @@ void ResourceUsers::set_roles(int user_id, const std::vector<std::string>& new_r
 bool ResourceUsers::is_blocked(int user_id) {
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params("SELECT is_blocked FROM users WHERE id = $1", user_id);
-    return res[0]["is_blocked"].as<bool>();
+    if (!res.empty()) return res[0]["is_blocked"].as<bool>();
+    return false;
 }
 
 // 8. Заблокировать/разблокировать пользователя

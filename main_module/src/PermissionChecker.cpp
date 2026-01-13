@@ -1,6 +1,8 @@
 #include "PermissionChecker.h"
 
 
+#include <iostream>
+
 PermissionChecker::PermissionChecker(ResourceUsers& resUsers): resUsers(resUsers){}
 
 PermissionInfo PermissionChecker::check(const httplib::Request& req, const std::string& permission){
@@ -21,12 +23,12 @@ PermissionInfo PermissionChecker::check(const httplib::Request& req, const std::
             info.status = 401; 
             return info;
         }
+        
         info.user_id = std::stoi(decoded.get_payload_claim("user_id").as_string());
         if (resUsers.is_blocked(info.user_id)){
             info.status = 418;
             return info;
         }
-        
         if (permission!=std::string("")){
             auto permissions = decoded.get_payload_claim("permissions").as_array();
             bool has_permission = false;
@@ -44,7 +46,8 @@ PermissionInfo PermissionChecker::check(const httplib::Request& req, const std::
         
 
         info.status = 200;
-    }catch (...) {
+    }catch (const std::exception& e) {
+        std::cerr<< e.what();
         info.status = 401;
     }
     return info;

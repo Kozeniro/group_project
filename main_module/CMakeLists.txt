@@ -27,6 +27,7 @@ add_executable(main_module src/main.cpp
 
     src/register_routes.cpp
     src/PermissionChecker.cpp
+    src/create_tables.cpp
 )
 
 target_include_directories(main_module PRIVATE ./src ./src/database ./src/api)

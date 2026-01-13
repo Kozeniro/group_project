@@ -1,10 +1,31 @@
-#include <register_routes.h>
+#pragma once
+#include <httplib.h>
+
+#include "Api_resUsers.h"
+#include "Api_resCourse.h"
+#include "Api_resQuestions.h"
+#include "Api_resTests.h"
+#include "Api_resAnswers.h"
+#include "Api_resAttempt.h"
 
 
 void register_routes(httplib::Server& svr, 
 	Api_resUsers& api_users, Api_resCourse& api_course, Api_resQuestions& api_questions, 
 	Api_resTests& api_tests, Api_resAnswers& api_answers, Api_resAttempt& api_attempt)
 {
+	//CORS
+	svr.set_pre_routing_handler([&](const httplib::Request& req, httplib::Response& res) -> httplib::Server::HandlerResponse {
+    res.set_header("Access-Control-Allow-Origin", "*");
+    res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.set_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+    if (req.method == "OPTIONS") {
+        res.status = 200;
+        return httplib::Server::HandlerResponse::Handled;
+    }
+
+    return httplib::Server::HandlerResponse::Unhandled;
+});
 	//Resource USERS
 	svr.Post(R"(/api/users)", [&](const httplib::Request& req, httplib::Response& res) {api_users.create(req, res);});
 	svr.Get(R"(/api/users)", [&](const httplib::Request& req, httplib::Response& res) {api_users.get_all(req, res);});
