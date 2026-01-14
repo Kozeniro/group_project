@@ -309,7 +309,9 @@ class MainAPIClient:
         response = await self.make_request("GET", "/notifications", access_token)
         if response and response.status_code == 200:
             return response.json()
-        return None
+        elif response and response.status_code == 404:
+            return []
+        return []
     
     async def delete_notifications(self, access_token: str):
         response = await self.make_request("DELETE", "/notifications", access_token)
