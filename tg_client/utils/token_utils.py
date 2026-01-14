@@ -41,7 +41,11 @@ async def make_authorized_request(chat_id: str, method: str, endpoint: str, **kw
     if not user_state or user_state['state'] != 'authorized':
         return None, "Пользователь не авторизован"
     
-    user_state = await refresh_tokens(chat_id)    
+    user_state = await refresh_tokens(chat_id)
+    
+    if not user_state:
+        return None, "Ошибка обновления токенов. Пожалуйста, авторизуйтесь заново."
+    
     access_token = user_state.get('access_token')
     
     if endpoint == "/api/users/me":

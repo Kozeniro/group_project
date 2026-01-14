@@ -2,10 +2,9 @@ from aiogram import Router, F
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from datetime import datetime
-import json
 import jwt
 
-from utils.redis_utils import set_user_state, get_user_state, delete_user_state, save_login_token, get_login_token, delete_login_token
+from utils.redis_utils import set_user_state, get_user_state, delete_user_state
 from utils.auth_client import auth_client
 
 router = Router()
@@ -29,7 +28,17 @@ async def login_command(message: Message):
         return
     
     result = await auth_client.create_login_token()
-    login_token = result['login_token']
+    
+    if 'error' in result:
+        await message.answer(f"Ошибка создания токена: {result['error']}")
+        return
+    
+    login_token = result.get('login_token')
+    
+    if not login_token:
+        await message.answer("Не удалось получить токен входа.")
+        return
+    
     
     set_user_state(chat_id, 'anonymous', {
         'login_token': login_token,
@@ -46,58 +55,13 @@ async def login_command(message: Message):
                 text="Яндекс", 
                 callback_data=f"yandex_{login_token}"
             )
-        ],
-        [
-            InlineKeyboardButton(
-                text="Войти по коду",
-                callback_data=f"get_code_{login_token}"
-            )
         ]
     ])
     
     await message.answer(
-        "Выберите способ входа:",
-        reply_markup=keyboard
-    )
-
-@router.callback_query(F.data.startswith("get_code_"))
-async def get_code_handler(callback: CallbackQuery):
-    login_token = callback.data.split("_")[2]
-    chat_id = callback.from_user.id
-    result = await auth_client.get_code_for_token(login_token)
-    
-    code = result['code']
-    expires_in = result.get('expires_in', 60)
-    
-    user_state = get_user_state(chat_id)
-    user_state['code'] = code
-    user_state['code_expires_in'] = expires_in
-    set_user_state(chat_id, 'anonymous', user_state)
-    
-    save_login_token(f"code_{code}", {
-        'login_token': login_token,
-        'chat_id': chat_id,
-        'created_at': datetime.now().isoformat(),
-        'status': 'pending'
-    })
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text="Проверить статус",
-            callback_data=f"check_{login_token}"
-        )]
-    ])
-    
-    await delete_and_send(
-        callback,
-        "Вход по коду\n\n"
-        f"Ваш код: `{code}`\n"
-        "Инструкция:\n"
-        "На другом авторизованном устройстве введите команду:\n"
-        f"`/enter_code {code}`\n"
-        "После ввода кода нажмите Проверить статус\n\n"
-        "Код действителен 1 минуту",
-        parse_mode="Markdown",
+        "Выберите способ входа:\n\n"
+        "-Авторизация через GitHub\n"
+        "-Авторизация через Яндекс ID",
         reply_markup=keyboard
     )
 
@@ -106,7 +70,12 @@ async def github_login_handler(callback: CallbackQuery):
     login_token = callback.data.split("_")[1]
     chat_id = callback.from_user.id
     
+    
     auth_url = await auth_client.get_github_auth_url(login_token)
+    
+    if not auth_url:
+        await callback.message.answer("Ошибка получения ссылки для GitHub авторизации.")
+        return
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
@@ -114,63 +83,108 @@ async def github_login_handler(callback: CallbackQuery):
             url=auth_url
         )],
         [InlineKeyboardButton(
-            text="Получить код", 
-            callback_data=f"get_gh_code_{login_token}"
-        )],
-        [InlineKeyboardButton(
-            text="Проверить статус", 
-            callback_data=f"check_{login_token}"
+            text="Проверить авторизацию", 
+            callback_data=f"gh_finish_{login_token}"
         )]
     ])
     
     await delete_and_send(
         callback,
-        "Авторизация через GitHub:\n\n"
-        "1. Перейдите по ссылке ниже\n"
+        "Авторизация через GitHub\n\n"
+        "1. Нажмите на ссылку ниже\n"
         "2. Авторизуйтесь в GitHub\n"
-        "3. После авторизации нажмите 'Получить код'\n"
-        "4. Введите код командой `/enter_code <код>`\n"
-        "5. Проверьте статус",
+        "3. После успешной авторизации вернитесь в бот и нажмите 'Проверить авторизацию'\n\n"
+        "У вас есть 5 минут на авторизацию",
         parse_mode="Markdown",
         reply_markup=keyboard
     )
 
-@router.callback_query(F.data.startswith("get_gh_code_"))
-async def get_github_code_handler(callback: CallbackQuery):
-    login_token = callback.data.split("_")[3]
+@router.callback_query(F.data.startswith("gh_finish_"))
+async def github_finish_handler(callback: CallbackQuery):
+    login_token = callback.data.split("_")[2]
     chat_id = callback.from_user.id
     
-    result = await auth_client.get_code_for_token(login_token)
+    await callback.message.answer("Получение кода подтверждения...")
     
-    if not result or 'code' not in result:
+    
+    code_result = await auth_client.get_code_for_token(login_token)
+    
+    if 'error' in code_result:
         await callback.message.answer(
-            "Не удалось получить код."
+            f"Не удалось получить код: {code_result['error']}\n\n"
+            "Возможные причины:\n"
+            "- Вы не авторизовались в GitHub\n"
+            "- Токен устарел (прошло больше 5 минут)\n"
+            "- Попробуйте снова: /login"
         )
         return
     
-    code = result['code']
+    code = code_result.get('code')
+    if not code:
+        await callback.message.answer("Не удалось получить код подтверждения.")
+        return
     
-    user_state = get_user_state(chat_id)
-    user_state['code'] = code
-    set_user_state(chat_id, 'anonymous', user_state)
+    await callback.message.answer(f"Получен код: {code}\n\nПроверка кода...")
     
-    save_login_token(f"code_{code}", {
-        'login_token': login_token,
-        'chat_id': chat_id,
-        'created_at': datetime.now().isoformat(),
-        'status': 'pending',
-        'source': 'github'
-    })
     
-    await delete_and_send(
-        callback,
-        "Код получен:\n\n"
-        f"`{code}`\n\n"
-        "Введите команду:**\n"
-        f"`/enter_code {code}`\n\n"
-        "Код действителен 1 минуту",
-        parse_mode="Markdown"
-    )
+    verify_result = await auth_client.verify_code(code)
+    
+    if verify_result.get('success'):
+        data = verify_result.get('data', {})
+        access_token = data.get('access_token')
+        refresh_token = data.get('refresh_token')
+        
+        if not access_token or not refresh_token:
+            await callback.message.answer("Ошибка: не получены токены")
+            return
+        
+        
+        try:
+            decoded = jwt.decode(access_token, options={"verify_signature": False})
+            user_id = decoded.get('user_id')
+            github_id = decoded.get('github_id')
+            email = decoded.get('email')
+            roles = decoded.get('roles', [])
+            permissions = decoded.get('permissions', [])
+        except Exception as e:
+            user_id = None
+            github_id = None
+            email = None
+            roles = []
+            permissions = []
+        
+        
+        set_user_state(chat_id, 'authorized', {
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user_id': user_id,
+            'github_id': github_id,
+            'email': email,
+            'roles': roles,
+            'permissions': permissions,
+            'authorized_at': datetime.now().isoformat()
+        })
+        
+        
+        response = "Авторизация через GitHub успешно завершена!\n\n"
+        if user_id:
+            response += f"User ID: {user_id}\n"
+        if github_id:
+            response += f"GitHub ID: {github_id}\n"
+        if email:
+            response += f"Email: {email}\n"
+        if roles:
+            response += f"Роли: {', '.join(roles)}\n"
+        
+        response += "\nТеперь вы можете использовать команды для авторизованных пользователей. Подробнее: /help"
+        
+        await callback.message.answer(response)
+    else:
+        error_msg = verify_result.get('error', 'Неизвестная ошибка')
+        await callback.message.answer(
+            f"Ошибка верификации кода: {error_msg}\n\n"
+            "Попробуйте снова: /login"
+        )
 
 @router.callback_query(F.data.startswith("yandex_"))
 async def yandex_login_handler(callback: CallbackQuery):
@@ -178,49 +192,144 @@ async def yandex_login_handler(callback: CallbackQuery):
     
     auth_url = await auth_client.get_yandex_auth_url(login_token)
     
+    if not auth_url:
+        await callback.message.answer("Ошибка получения ссылки для Яндекс авторизации.")
+        return
+    
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
             text="Авторизация через Яндекс", 
             url=auth_url
         )],
         [InlineKeyboardButton(
-            text="Проверить статус", 
-            callback_data=f"check_{login_token}"
+            text="Проверить авторизацию", 
+            callback_data=f"ya_finish_{login_token}"
         )]
     ])
     
     await delete_and_send(
         callback,
-        "Авторизация через Яндекс:\n\n"
-        "1. Перейдите по ссылке ниже\n"
-        "2. Авторизуйтесь в Яндекс\n"
-        "3. После авторизации нажмите 'Получить код'\n"
-        "4. Введите код командой `/enter_code <код>`\n"
-        "5. Проверьте статус",
+        "Авторизация через Яндекс\n\n"
+        "1. Нажмите на ссылку ниже\n"
+        "2. Авторизуйтесь в Яндекс ID\n"
+        "3. После успешной авторизации вернитесь в бот и нажмите 'Проверить авторизацию'\n\n"
+        "У вас есть 5 минут на авторизацию",
         parse_mode="Markdown",
         reply_markup=keyboard
     )
+
+@router.callback_query(F.data.startswith("ya_finish_"))
+async def yandex_finish_handler(callback: CallbackQuery):
+    login_token = callback.data.split("_")[2]
+    chat_id = callback.from_user.id
+    
+    await callback.message.answer("Получение кода подтверждения...")
+    
+    
+    code_result = await auth_client.get_code_for_token(login_token)
+    
+    if 'error' in code_result:
+        await callback.message.answer(
+            f"Не удалось получить код: {code_result['error']}\n\n"
+            "Возможные причины:\n"
+            "- Вы не авторизовались в Яндекс\n"
+            "- Токен устарел (прошло больше 5 минут)\n"
+            "- Попробуйте снова: /login"
+        )
+        return
+    
+    code = code_result.get('code')
+    if not code:
+        await callback.message.answer("Не удалось получить код подтверждения.")
+        return
+    
+    await callback.message.answer(f"Получен код: {code}\n\nПроверка кода...")
+    
+    
+    verify_result = await auth_client.verify_code(code)
+    
+    if verify_result.get('success'):
+        data = verify_result.get('data', {})
+        access_token = data.get('access_token')
+        refresh_token = data.get('refresh_token')
+        
+        if not access_token or not refresh_token:
+            await callback.message.answer("Ошибка: не получены токены")
+            return
+        
+        
+        try:
+            decoded = jwt.decode(access_token, options={"verify_signature": False})
+            user_id = decoded.get('user_id')
+            yandex_id = decoded.get('yandex_id')
+            email = decoded.get('email')
+            roles = decoded.get('roles', [])
+            permissions = decoded.get('permissions', [])
+        except Exception as e:
+            user_id = None
+            yandex_id = None
+            email = None
+            roles = []
+            permissions = []
+        
+        
+        set_user_state(chat_id, 'authorized', {
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user_id': user_id,
+            'yandex_id': yandex_id,
+            'email': email,
+            'roles': roles,
+            'permissions': permissions,
+            'authorized_at': datetime.now().isoformat()
+        })
+        
+        
+        response = "Авторизация через Яндекс успешно завершена!\n\n"
+        if user_id:
+            response += f"User ID: {user_id}\n"
+        if yandex_id:
+            response += f"Яндекс ID: {yandex_id}\n"
+        if email:
+            response += f"Email: {email}\n"
+        if roles:
+            response += f"Роли: {', '.join(roles)}\n"
+        
+        response += "\nТеперь вы можете использовать команды:\n"
+        response += "/profile - ваш профиль\n"
+        response += "/courses - список курсов\n"
+        response += "/my_permissions - ваши права"
+        
+        await callback.message.answer(response)
+    else:
+        error_msg = verify_result.get('error', 'Неизвестная ошибка')
+        await callback.message.answer(
+            f"Ошибка верификации кода: {error_msg}\n\n"
+            "Попробуйте снова: /login"
+        )
 
 @router.message(Command("enter_code"))
 async def enter_code_command(message: Message, command: CommandObject = None):
     if not command or not command.args:
         await message.answer(
-            "Использование: /enter_code <код>"
+            "Использование: /enter_code <6-значный_код>\n\n"
+            "Код вы получаете после авторизации через GitHub или Яндекс на другом устройстве."
         )
         return
     
     code = command.args.strip()
-    chat_id = message.chat.id
     
-    await message.answer(f"Проверяю код: {code}")
     if not code.isdigit() or len(code) != 6:
         await message.answer("Код должен состоять из 6 цифр")
         return
-    result = await auth_client.verify_code(code)
     
-    if result.get('success'):
-        data = result.get('data', {})
-        
+    await message.answer(f"Проверка кода: {code}")
+    
+    
+    verify_result = await auth_client.verify_code(code)
+    
+    if verify_result.get('success'):
+        data = verify_result.get('data', {})
         access_token = data.get('access_token')
         refresh_token = data.get('refresh_token')
         
@@ -231,85 +340,73 @@ async def enter_code_command(message: Message, command: CommandObject = None):
         try:
             decoded = jwt.decode(access_token, options={"verify_signature": False})
             user_id = decoded.get('user_id')
+            email = decoded.get('email')
+            roles = decoded.get('roles', [])
         except Exception as e:
             user_id = None
+            email = None
+            roles = []
         
-        set_user_state(chat_id, 'authorized', {
+        
+        set_user_state(message.chat.id, 'authorized', {
             'access_token': access_token,
             'refresh_token': refresh_token,
             'user_id': user_id,
+            'email': email,
+            'roles': roles,
             'authorized_at': datetime.now().isoformat()
         })
         
-        await message.answer(
-            f"Успешная авторизация.\nUser ID: {user_id}"
-        )
+        response = "Вход по коду успешно выполнен!\n\n"
+        if user_id:
+            response += f"User ID: {user_id}\n"
+        if email:
+            response += f"Email: {email}\n"
+        if roles:
+            response += f"Роли: {', '.join(roles)}"
+        
+        await message.answer(response)
     else:
-        error_msg = result.get('error', 'Неизвестная ошибка')
+        error_msg = verify_result.get('error', 'Неизвестная ошибка')
         await message.answer(
             f"Ошибка: {error_msg}\n\n"
             "Возможные причины:\n"
-            "-Код неверный\n"
-            "-Код устарел (время действия 1 минута)\n"
-            "-Код уже был использован"
+            "- Код неверный\n"
+            "- Код устарел (действителен 60 секунд)\n"
+            "- Код уже был использован\n"
+            "Попробуйте получить новый код на другом устройстве"
         )
 
-@router.callback_query(F.data.startswith("check_"))
-async def check_status_handler(callback: CallbackQuery):
-    login_token = callback.data.split("_")[1]
-    chat_id = callback.from_user.id
+@router.message(Command("my_permissions"))
+async def my_permissions_command(message: Message):
+    chat_id = message.chat.id
+    user_state = get_user_state(chat_id)
+    
+    if user_state['state'] != 'authorized':
+        await message.answer("Сначала авторизуйтесь: /login")
+        return
+    
+    access_token = user_state.get('access_token')
+    
+    try:
+        decoded = jwt.decode(access_token, options={"verify_signature": False})
+        permissions = decoded.get('permissions', [])
+        roles = decoded.get('roles', [])
+        
+        response = "Ваши права доступа:\n\n"
+        response += f"Роли: {', '.join(roles) if roles else 'нет'}\n"
+        response += f"Права ({len(permissions)}):\n"
+        
+        if permissions:
+            for perm in permissions:
+                response += f"  • {perm}\n"
+        else:
+            response += "  нет прав"
+        
+        await message.answer(response)
+    except Exception as e:
+        await message.answer(f"Ошибка получения прав: {e}")
 
-    status_data = await auth_client.check_login_status(login_token)    
-    status = status_data.get('status')
-    
-    if status == "pending":
-        await callback.message.answer("Авторизация еще не завершена.")       
-    elif status == 'authorized':
-        access_token = status_data.get('access_token')
-        refresh_token = status_data.get('refresh_token')
-        
-        if not access_token or not refresh_token:
-            await delete_and_send(
-                callback,
-                "Ошибка: не получены токены от сервера авторизации"
-            )
-            return
-        
-        try:
-            decoded = jwt.decode(access_token, options={"verify_signature": False})
-            user_id = decoded.get('user_id')
-        except Exception as e:
-            user_id = None
-        
-        set_user_state(chat_id, 'authorized', {
-            'access_token': access_token,
-            'refresh_token': refresh_token,
-            'user_id': user_id,
-            'authorized_at': datetime.now().isoformat()
-        })
-        
-        user_state = get_user_state(chat_id)
-        if 'code' in user_state:
-            code = user_state['code']
-            delete_login_token(f"code_{code}")
-        
-        await delete_and_send(
-            callback,
-            f"Успешная авторизация.\nID: {user_id}"
-        )
-    
-    elif status == 'expired':
-        delete_user_state(chat_id)
-        await delete_and_send(
-            callback,
-            "Токен устарел. Начните авторизацию заново: /login"
-        )    
-    elif status == 'denied':
-        delete_user_state(chat_id)
-        await delete_and_send(
-            callback,
-            "Авторизация отклонена.\nПопробуйте снова: /login"
-        )
 
 
 @router.message(Command("refresh"))
@@ -328,6 +425,10 @@ async def refresh_command(message: Message):
     
     result = await auth_client.refresh_access_token(refresh_token)
     
+    if 'error' in result:
+        await message.answer(f"Ошибка обновления токенов: {result['error']}")
+        return
+    
     access_token = result.get('access_token')
     new_refresh_token = result.get('refresh_token')
     
@@ -336,7 +437,6 @@ async def refresh_command(message: Message):
     set_user_state(chat_id, 'authorized', user_state)
     
     await message.answer("Токены обновлены.")
-
 
 @router.message(Command("logout"))
 async def logout_command(message: Message, command: CommandObject = None):
@@ -385,29 +485,3 @@ async def debug_command(message: Message):
                 response += f"\nОшибка декодирования JWT: {e}\n"
     
     await message.answer(response)
-
-@router.message(Command("my_permissions"))
-async def my_permissions_command(message: Message):
-    chat_id = message.chat.id
-    user_state = get_user_state(chat_id)
-    
-    if user_state['state'] != 'authorized':
-        await message.answer("Сначала авторизуйтесь: /login")
-        return
-    
-    access_token = user_state.get('access_token')
-    
-    try:
-        decoded = jwt.decode(access_token, options={"verify_signature": False})
-        permissions = decoded.get('permissions', [])
-        roles = decoded.get('roles', [])
-        
-        response = f"Ваши права:\n\n"
-        response += f"Роли: {', '.join(roles) if roles else 'нет'}\n"
-        response += f"Права ({len(permissions)}):\n"
-        for perm in permissions:
-            response += f"  • {perm}\n"
-        
-        await message.answer(response)
-    except Exception as e:
-        await message.answer(f"Ошибка получения прав: {e}")

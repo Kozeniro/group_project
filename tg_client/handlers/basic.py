@@ -37,16 +37,16 @@ async def start_command(message: Message):
 async def help_command(message: Message):
     await message.answer("""
 Доступные команды:
-                         
+
 Для всех пользователей:
 /start - начать работу
 /help - помощь
 /status - ваш текущий статус
-                         
+
 Чтобы авторизороваться:
-/login - войти
-/enter_code [код] - ввести код
-                                      
+/login - войти через GitHub или Яндекс
+/enter_code [код] - войти по коду с другого устройства
+
 Для авторизованных:
 /profile - мой профиль
 /mycourses - мои курсы
@@ -57,9 +57,11 @@ async def help_command(message: Message):
 /tests - все тесты
 /test [id] - информация о тесте
 /questions - все вопросы
+/my_permissions - мои права
 /refresh - обновить токены
 /logout - выйти
 /logout all=true - выйти на всех устройствах
+/debug - отладочная информация
     """)
 
 @router.message(Command("status"))

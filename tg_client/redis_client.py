@@ -73,5 +73,19 @@ class RedisClient:
     def delete_user_session(self, chat_id):
         self.redis.delete(f"user:{chat_id}")
   
+    def add_to_set(self, set_name, value):
+        if not self.redis:
+            return
+        self.redis.sadd(set_name, value)
+    
+    def remove_from_set(self, set_name, value):
+        if not self.redis:
+            return
+        self.redis.srem(set_name, value)
+    
+    def get_set_members(self, set_name):
+        if not self.redis:
+            return []
+        return list(self.redis.smembers(set_name))
         
 redis_client = RedisClient()

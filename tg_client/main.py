@@ -2,7 +2,6 @@ from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 import asyncio
-import sys
 import logging
 
 from utils.config import Config
