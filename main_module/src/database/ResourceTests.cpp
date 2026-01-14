@@ -2,7 +2,7 @@
 
 ResourceTests::ResourceTests(pqxx::connection& conn) :conn(conn) {}
 
-// 0. Получить id преподавателя курса с данным тестом
+// 0.0. Получить id преподавателя курса с данным тестом
 int ResourceTests::get_instructor(int test_id){
     pqxx::work txn(conn);
     pqxx::result instructor_id = txn.exec_params("SELECT c.instructor_id FROM tests t \
@@ -11,7 +11,7 @@ int ResourceTests::get_instructor(int test_id){
     );
     return instructor_id[0][0].as<int>();
 }
-// 0.0. Получить id автора вопроса
+// 0.0.0. Получить id автора вопроса
 int ResourceTests::get_author(int question_id){
     pqxx::work txn(conn);
     pqxx::result author_id = txn.exec_params("SELECT author_id FROM questions WHERE local_id = $1",
@@ -19,6 +19,7 @@ int ResourceTests::get_author(int question_id){
     );
     return author_id[0][0].as<int>();
 }
+
 
 // 1.Удалить вопрос из теста
 void ResourceTests::remove_question(int test_id, int question_id) {
@@ -47,7 +48,7 @@ void ResourceTests::add_question(int test_id, int question_id) {
     if (!was_attempted[0][0].as<bool>()) {
         txn.exec_params(
             "INSERT INTO tests_questions (test_id, question_id, position) VALUES \
-        ($1, $2, (SELECT COALESCE(MAX(position), 1) FROM tests_questions WHERE test_id = $1))",
+        ($1, $2, (SELECT COALESCE(MAX(position), 0)+1 FROM tests_questions WHERE test_id = $1))",
             test_id, question_id
         );
     }

@@ -2,6 +2,7 @@
 #include "ResourceQuestions.h"
 #include "PermissionChecker.h"
 #include "httplib.h"
+#include "json.hpp"
 
 class Api_resQuestions {
 private:

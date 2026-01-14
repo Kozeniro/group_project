@@ -16,7 +16,9 @@ std::vector<UserLine> ResourceUsers::get_all() {
     pqxx::work txn(conn);
     pqxx::result res = txn.exec("SELECT id, full_name FROM users");
     for (const auto& row : res) {
-        users.push_back({ row["id"].as<int>(), row["full_name"].as<std::string>() });
+		std::string full_name = "";
+		if (!row["full_name"].is_null()) full_name = row["full_name"].as<std::string>();
+        users.push_back({ row["id"].as<int>(), full_name});
     }
     return users;
 }
@@ -25,7 +27,9 @@ std::vector<UserLine> ResourceUsers::get_all() {
 std::string ResourceUsers::get_name(int user_id) {
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params("SELECT full_name FROM users WHERE id = $1", user_id);
-    return res[0]["full_name"].as<std::string>();
+	std::string full_name = "";
+	if (!res[0]["full_name"].is_null()) full_name = res[0]["full_name"].as<std::string>();
+    return full_name;
 }
 
 // 3. Изменить ФИО пользователя
@@ -99,7 +103,7 @@ void ResourceUsers::set_roles(int user_id, const std::vector<std::string>& new_r
     txn.exec_params("DELETE FROM users_roles WHERE user_id = $1", user_id);
     for (const auto& role_name : new_roles) {
         pqxx::result res_role = txn.exec_params("SELECT id FROM roles WHERE name = $1", role_name);
-        int role_id = res_role[0]["id"].as<int>();
+        int role_id = (!res_role[0]["id"].is_null() ? res_role[0]["id"].as<int>() : 0);
         txn.exec_params("INSERT INTO users_roles (user_id, role_id) VALUES ($1, $2)", user_id, role_id);
     }
 

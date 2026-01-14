@@ -23,8 +23,7 @@ PermissionInfo PermissionChecker::check(const httplib::Request& req, const std::
             info.status = 401; 
             return info;
         }
-        
-        info.user_id = std::stoi(decoded.get_payload_claim("user_id").as_string());
+        info.user_id = resUsers.get_user_id(decoded.get_payload_claim("user_id").as_string());
         if (resUsers.is_blocked(info.user_id)){
             info.status = 418;
             return info;
@@ -46,8 +45,7 @@ PermissionInfo PermissionChecker::check(const httplib::Request& req, const std::
         
 
         info.status = 200;
-    }catch (const std::exception& e) {
-        std::cerr<< e.what();
+    }catch (...) {
         info.status = 401;
     }
     return info;

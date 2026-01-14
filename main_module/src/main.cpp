@@ -5,7 +5,7 @@
 #include "PermissionChecker.h"
 #include "create_tables.h"
 
-#include <cstdlib> // for getenv
+#include <cstdlib> 
 int main()
 {
     

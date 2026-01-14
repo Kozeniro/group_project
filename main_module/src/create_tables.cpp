@@ -20,7 +20,9 @@ void create_tables(pqxx::connection& conn){
 					CREATE TABLE "+t+" (\
 						id SERIAL PRIMARY KEY,\
 						name VARCHAR(50) NOT NULL\
-					);";
+					);\
+					INSERT INTO roles (name) VALUES ('student'),('teacher'),('admin');\
+					";
 			else if (t=="users_roles")
 				query = "\
 					CREATE TABLE "+t+" (\
@@ -70,7 +72,7 @@ void create_tables(pqxx::connection& conn){
 				query = "\
 					CREATE TABLE "+t+" (\
 						test_id INTEGER NOT NULL REFERENCES tests(id),\
-						question_id INTEGER NOT NULL REFERENCES questions(id),\
+						question_id INTEGER NOT NULL,\
 						PRIMARY KEY (test_id, question_id),\
 						position INTEGER NOT NULL\
 					);";

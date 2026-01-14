@@ -30,7 +30,7 @@ void register_routes(httplib::Server& svr,
 	svr.Get(R"(/api/user_id)", [&](const httplib::Request& req, httplib::Response& res) {api_users.get_user_id(req, res);});
 	svr.Get(R"(/api/users)", [&](const httplib::Request& req, httplib::Response& res) {api_users.get_all(req, res);});
 	svr.Get(R"(/api/users/(\d+)/name)", [&](const httplib::Request& req, httplib::Response& res) {api_users.get_name(req, res);});
-	svr.Put(R"(api/api/users/(\d+)/name)", [&](const httplib::Request& req, httplib::Response& res) {api_users.update_name(req, res);});
+	svr.Put(R"(/api/users/(\d+)/name)", [&](const httplib::Request& req, httplib::Response& res) {api_users.update_name(req, res);});
 	svr.Get(R"(/api/users/(\d+)/info)", [&](const httplib::Request& req, httplib::Response& res) {api_users.get_info(req, res);});
 	svr.Get(R"(/api/users/(\d+)/roles)", [&](const httplib::Request& req, httplib::Response& res) {api_users.get_roles(req, res);});
 	svr.Post(R"(/api/users/(\d+)/roles)", [&](const httplib::Request& req, httplib::Response& res) {api_users.set_roles(req, res);});
@@ -47,12 +47,12 @@ void register_routes(httplib::Server& svr,
 	svr.Delete(R"(/api/course/(\d+)/tests/(\d+))", [&](const httplib::Request& req, httplib::Response& res) {api_course.remove_test(req, res);});
 	svr.Get(R"(/api/course/(\d+)/students)", [&](const httplib::Request& req, httplib::Response& res) {api_course.get_students(req, res);});
 	svr.Post(R"(/api/course/(\d+)/students)", [&](const httplib::Request& req, httplib::Response& res) {api_course.add_user(req, res);});
-	svr.Delete(R"(/api/course/(\d+)/students/<student_id>)", [&](const httplib::Request& req, httplib::Response& res) {api_course.remove_user(req, res);});
+	svr.Delete(R"(/api/course/(\d+)/students/(\d+))", [&](const httplib::Request& req, httplib::Response& res) {api_course.remove_user(req, res);});
 	svr.Post(R"(/api/course)", [&](const httplib::Request& req, httplib::Response& res) {api_course.create_course(req, res);});
 	svr.Delete(R"(/api/course/(\d+))", [&](const httplib::Request& req, httplib::Response& res) {api_course.delete_course(req, res);});
 	//Resource QUESTIONS
 	svr.Get(R"(/api/questions)", [&](const httplib::Request& req, httplib::Response& res) {api_questions.get_all(req, res);});
-	svr.Get(R"(/api/questions/(\d+)?version=(int))", [&](const httplib::Request& req, httplib::Response& res) {api_questions.get_info(req, res);});
+	svr.Get(R"(/api/questions/(\d+))", [&](const httplib::Request& req, httplib::Response& res) {api_questions.get_info(req, res);});
 	svr.Put(R"(/api/questions/(\d+))", [&](const httplib::Request& req, httplib::Response& res) {api_questions.update_question(req, res);});
 	svr.Post(R"(/api/questions)", [&](const httplib::Request& req, httplib::Response& res) {api_questions.create_question(req, res);});
 	svr.Delete(R"(/api/questions/(\d+))", [&](const httplib::Request& req, httplib::Response& res) {api_questions.delete_question(req, res);});

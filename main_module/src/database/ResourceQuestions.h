@@ -6,6 +6,7 @@
 #include <vector>
 
 struct QuestionLine {
+	int id;
     std::string name;
     int version;
     int author_id;

@@ -44,11 +44,14 @@ int ResourceAttempt::create_attempt(int user_id, int test_id) {
             pqxx::result test_quests = txn.exec_params(
                 "SELECT question_id FROM tests_questions WHERE test_id = $1", test_id
             );
+			txn.commit();
+			
             for (const auto& question : test_quests) {
                 resource_answers.create_answer(attempt_id, question["question_id"].as<int>());
             }
         }
     }
+	
     return attempt_id;
 }
 
@@ -78,6 +81,7 @@ void ResourceAttempt::finish_attempt(int attempt_id) {
         "SELECT t.is_active, att.status FROM attempts att JOIN tests t ON att.test_id = t.id WHERE att.id = $1",
         attempt_id
     );
+	try{
     if (test_att_check[0]["status"].as<std::string>() == "active" && test_att_check[0]["is_active"].as<bool>())
     {
 
@@ -93,6 +97,8 @@ void ResourceAttempt::finish_attempt(int attempt_id) {
 
         txn.commit();
     }
+	}
+	catch(...){}
 
 }
 
@@ -105,7 +111,7 @@ AttemptInfo ResourceAttempt::get_info(int user_id, int test_id) {
     );
 
     pqxx::result ans_res = txn.exec_params(
-        "SELECT qusetion_id, question_version, answer_option FROM answers ans \
+        "SELECT question_id, question_version, answer_option FROM answers ans \
         JOIN attempts att ON ans.attempt_id = att.id WHERE att.user_id = $1 AND att.test_id = $2",
         user_id, test_id
     );

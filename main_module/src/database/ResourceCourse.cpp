@@ -20,7 +20,9 @@ CourseInfo ResourceCourse::get_info(int course_id) {
         "SELECT name, description, instructor_id FROM courses WHERE id = $1 AND is_exists = TRUE",
         course_id
     );
-    return { res[0]["name"].as<std::string>(),res[0]["description"].as<std::string>(),res[0]["instructor_id"].as<int>() };
+	if (res.empty()) return {"","",-1};
+	std::string description = (!res[0]["description"].is_null() ? res[0]["description"].as<std::string>() : "");
+    return {res[0]["name"].as<std::string>(),description,res[0]["instructor_id"].as<int>()};
 }
 
 // 3.Изменить информацию о дисциплине
@@ -54,10 +56,8 @@ bool ResourceCourse::is_test_active(int course_id, int test_id) {
         "SELECT is_active FROM tests WHERE id = $1 AND course_id = $2 AND is_exists = TRUE",
         test_id, course_id
     );
-    if (res.empty()) {
-        throw std::runtime_error("Test not found");
-    }
-    return res[0]["is_active"].as<bool>();
+	if (!res.empty()) return res[0]["is_active"].as<bool>();
+    return false;
 }
 
 // 6.Активировать/Деактивировать тест
@@ -79,12 +79,16 @@ void ResourceCourse::set_test_active(int course_id, int test_id, bool active) {
 // 7.Добавить тест в дисциплину
 int ResourceCourse::add_test(int course_id, const std::string& test_name) {
     pqxx::work txn(conn);
+	try{
     pqxx::result res = txn.exec_params(
         "INSERT INTO tests (course_id, name, is_active, is_exists) VALUES ($1, $2, FALSE, TRUE) RETURNING id",
         course_id, test_name
     );
     txn.commit();
-    return res[0]["id"].as<int>();
+	return res[0]["id"].as<int>();
+	}
+	catch(...) {return -1;}
+    
 }
 
 // 8.Удалить тест из дисциплины 

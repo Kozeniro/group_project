@@ -2,6 +2,7 @@
 #include <jwt-cpp/jwt.h>
 #include "ResourceUsers.h"
 #include "httplib.h"
+#include <string>
 
 struct PermissionInfo{
     int status;
