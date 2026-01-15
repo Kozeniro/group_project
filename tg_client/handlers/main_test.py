@@ -173,13 +173,15 @@ async def my_scores_command(message: Message):
     else:
         await message.answer("У вас нет оценок.")
 
+@router.message(Command("course"), ~F.text.contains(" "))
+async def course_no_args(message: Message):
+    await message.answer(
+        "Использование команды:\n"
+        "/course <ID курса>"
+    )
 @router.message(Command("course"))
 async def course_info_command(message: Message, command: CommandObject = None):
-    chat_id = message.chat.id
-    
-    if not command or not command.args:
-        await message.answer("Использование: /course <ID курса>")
-        return
+    chat_id = message.chat.id    
     
     course_id = command.args.strip()
     
@@ -196,13 +198,16 @@ async def course_info_command(message: Message, command: CommandObject = None):
         f"Информация о курсе\n\nID: {course_id}\nНазвание: {name}\nОписание: {description}\nID Преподавателя: {instructor_id}"
     )
 
+
+@router.message(Command("test"), ~F.text.contains(" "))
+async def test_no_args(message: Message):
+    await message.answer(
+        "Использование команды:\n"
+        "/course <ID теста>"
+    )
 @router.message(Command("test"))
 async def test_info_command(message: Message, command: CommandObject = None):
-    chat_id = message.chat.id
-    
-    if not command or not command.args:
-        await message.answer("Использование: /test <ID теста>")
-        return
+    chat_id = message.chat.id    
     
     test_id = command.args.strip()
     

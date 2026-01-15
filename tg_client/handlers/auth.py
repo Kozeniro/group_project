@@ -17,15 +17,16 @@ async def delete_and_send(message_or_callback, text, **kwargs):
         return await message_or_callback.answer(text, **kwargs)
     
 
+@router.message(Command("register"), ~F.text.contains(" "))
+@router.message(Command("reg"), ~F.text.contains(" "))
+async def reg_no_args(message: Message):
+    await message.answer(
+        "Использование команды:\n"
+        "/register <email> <password>"
+    )
 @router.message(Command("register"))
 @router.message(Command("reg"))
-async def register_command(message: Message, command: CommandObject = None):
-    if not command or not command.args:
-        await message.answer(
-            "Использование: /register <email> <password>"
-        )
-        return
-    
+async def register_command(message: Message, command: CommandObject = None):    
     args = command.args.strip().split()
     if len(args) != 2:
         await message.answer(
