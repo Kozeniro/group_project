@@ -22,7 +22,7 @@ async def delete_and_send(message_or_callback, text, **kwargs):
 async def reg_no_args(message: Message):
     await message.answer(
         "Использование команды:\n"
-        "/register <email> <password>"
+        "/register [email] [password]"
     )
 @router.message(Command("register"))
 @router.message(Command("reg"))
@@ -30,7 +30,7 @@ async def register_command(message: Message, command: CommandObject = None):
     args = command.args.strip().split()
     if len(args) != 2:
         await message.answer(
-            "Неверный формат. Использование: /register <email> <password>"
+            "Неверный формат. Использование: /register [email] [password]"
         )
         return
     
@@ -88,7 +88,7 @@ async def login_command(message: Message, command: CommandObject = None):
         if len(args) == 2:
             email, password = args[0], args[1]
             
-            await message.answer("Выполняю вход...")
+            await message.answer("Выполняется вход...")
             
             result = await auth_client.login_user(email, password)
             
@@ -405,7 +405,7 @@ async def yandex_finish_handler(callback: CallbackQuery):
 async def enter_code_command(message: Message, command: CommandObject = None):
     if not command or not command.args:
         await message.answer(
-            "Использование: /enter_code <6-значный_код>\n\n"
+            "Использование: /enter_code [6-значный_код]\n\n"
             "Код вы получаете после авторизации через GitHub или Яндекс на другом устройстве."
         )
         return

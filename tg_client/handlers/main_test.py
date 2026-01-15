@@ -21,7 +21,7 @@ async def tests_command(message: Message):
         for i in range(len(tests)):
             name = tests[i].get('name')
             test_id = tests[i].get('id')
-            response_text += f"{i}. {name} (ID: {test_id})\n"
+            response_text += f"{i+1}. {name} (ID: {test_id})\n\n"
         await message.answer(response_text)
     else:
         await message.answer("Нет доступных тестов.")
@@ -52,7 +52,7 @@ async def courses_command(message: Message):
                     description = course.get('description', '')
                     response_text += f"{i+1}. {name} (ID: {course_id})\n"
                     if description:
-                        response_text += f"   {description}\n"
+                        response_text += f"   {description}\n\n"
                 await message.answer(response_text)
             else:
                 await message.answer("Нет доступных курсов.")
@@ -115,7 +115,7 @@ async def my_courses_command(message: Message):
         for i in range(len(result)):
             course_id = result[i].get('id', '?')
             name = result[i].get('name', 'Без названия')
-            response_text += f"{i}. {name} (ID: {course_id})\n"
+            response_text += f"{i+1}. {name} (ID: {course_id})\n\n"
         await message.answer(response_text)
     else:
         await message.answer("У вас нет курсов.")
@@ -141,7 +141,7 @@ async def my_tests_command(message: Message):
         for i in range(len(result)):
             test_id = result[i].get('id', '?')
             name = result[i].get('name', 'Без названия')
-            response_text += f"{i}. {name} (ID: {test_id})\n"
+            response_text += f"{i+1}. {name} (ID: {test_id})\n\n"
         await message.answer(response_text)
     else:
         await message.answer("У вас нет доступных тестов.")
@@ -168,7 +168,7 @@ async def my_scores_command(message: Message):
             test_name = result[i].get('test_name', 'Неизвестный тест')
             score_value = result[i].get('score', 0)
             max_score = result[i].get('max_score', 100)
-            response_text += f"{i}. {test_name}: {score_value}/{max_score}\n"
+            response_text += f"{i+1}. {test_name}: {score_value}/{max_score}\n\n"
         await message.answer(response_text)
     else:
         await message.answer("У вас нет оценок.")
@@ -177,7 +177,7 @@ async def my_scores_command(message: Message):
 async def course_no_args(message: Message):
     await message.answer(
         "Использование команды:\n"
-        "/course <ID курса>"
+        "/course [ID курса]"
     )
 @router.message(Command("course"))
 async def course_info_command(message: Message, command: CommandObject = None):
@@ -203,7 +203,7 @@ async def course_info_command(message: Message, command: CommandObject = None):
 async def test_no_args(message: Message):
     await message.answer(
         "Использование команды:\n"
-        "/course <ID теста>"
+        "/course [ID теста]"
     )
 @router.message(Command("test"))
 async def test_info_command(message: Message, command: CommandObject = None):
@@ -248,7 +248,7 @@ async def questions_command(message: Message):
                     name = question.get('name', 'Без названия')
                     question_id = question.get('id', '?')
                     version = question.get('version', 1)
-                    response_text += f"{i}. {name} (ID: {question_id}, версия: {version})\n"
+                    response_text += f"{i+1}. {name} (ID: {question_id}, версия: {version})\n\n"
                 await message.answer(response_text)
             else:
                 await message.answer("Нет доступных вопросов.")
