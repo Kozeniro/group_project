@@ -23,7 +23,6 @@ class AuthClient:
             json={"email": email, "password": password},
             timeout=10.0
         )
-        
         if response.status_code in [200, 201]:
             return response.json()
         else:

@@ -15,10 +15,65 @@ async def delete_and_send(message_or_callback, text, **kwargs):
         return await message_or_callback.message.answer(text, **kwargs)
     else:
         return await message_or_callback.answer(text, **kwargs)
+    
+
+@router.message(Command("register"))
+@router.message(Command("reg"))
+async def register_command(message: Message, command: CommandObject = None):
+    if not command or not command.args:
+        await message.answer(
+            "Использование: /register <email> <password>"
+        )
+        return
+    
+    args = command.args.strip().split()
+    if len(args) != 2:
+        await message.answer(
+            "Неверный формат. Использование: /register <email> <password>"
+        )
+        return
+    
+    email, password = args[0], args[1]
+    
+    await message.answer("Регистрирация пользователя...")
+    
+    result = await auth_client.register_user(email, password)
+    
+    if 'error' in result:
+        await message.answer(f"Ошибка регистрации: {result['error']}")
+        return
+    
+    if 'access_token' in result and 'refresh_token' in result:
+        access_token = result['access_token']
+        refresh_token = result['refresh_token']
+        
+        try:
+            decoded = jwt.decode(access_token, options={"verify_signature": False})
+            user_id = decoded.get('user_id')
+        except Exception:
+            user_id = None
+        
+        set_user_state(message.chat.id, 'authorized', {
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user_id': user_id,
+            'email': email,
+            'authorized_at': datetime.now().isoformat()
+        })
+        
+        await message.answer(
+            "Регистрация успешна!\n"
+            f"Email: {email}\n"
+            f"User ID: {user_id if user_id else 'N/A'}\n\n"
+            "Вы авторизованы."
+        )
+    else:
+        await message.answer("Регистрация выполнена, но не удалось получить токены.")
 
 
 @router.message(Command("login"))
-async def login_command(message: Message):
+@router.message(Command("l"))
+async def login_command(message: Message, command: CommandObject = None):
     chat_id = message.chat.id
     
     user_state = get_user_state(chat_id)
@@ -27,6 +82,43 @@ async def login_command(message: Message):
         await message.answer("Вы уже авторизованы.")
         return
     
+    if command and command.args:
+        args = command.args.strip().split()
+        if len(args) == 2:
+            email, password = args[0], args[1]
+            
+            await message.answer("Выполняю вход...")
+            
+            result = await auth_client.login_user(email, password)
+            
+            if 'error' in result:
+                await message.answer(f"Ошибка входа: {result['error']}")
+                return
+            
+            if 'access_token' in result and 'refresh_token' in result:
+                access_token = result['access_token']
+                refresh_token = result['refresh_token']
+                
+                try:
+                    decoded = jwt.decode(access_token, options={"verify_signature": False})
+                    user_id = decoded.get('user_id')
+                except Exception:
+                    user_id = None
+                
+                set_user_state(chat_id, 'authorized', {
+                    'access_token': access_token,
+                    'refresh_token': refresh_token,
+                    'user_id': user_id,
+                    'email': email,
+                    'authorized_at': datetime.now().isoformat()
+                })
+                
+                await message.answer(f"Вход выполнен!\nUser ID: {user_id if user_id else 'N/A'}")
+                return
+            else:
+                await message.answer("Ошибка: не получены токены")
+                return
+
     result = await auth_client.create_login_token()
     
     if 'error' in result:

@@ -44,7 +44,9 @@ async def help_command(message: Message):
 /status - ваш текущий статус
 
 Чтобы авторизороваться:
-/login - войти через GitHub или Яндекс
+/register (/reg) [email] [password] - зарегистрироваться с почтой и паролем
+/login (/l) - войти через GitHub или Яндекс
+/login (/l) [email] [password] - войти c почтой и паролем
 /enter_code [код] - войти по коду с другого устройства
 
 Для авторизованных:
