@@ -56,7 +56,7 @@ int ResourceAttempt::create_attempt(int user_id, int test_id) {
 }
 
 // 2.Изменить попытку (изменение ответа)
-void ResourceAttempt::update_answer(int attempt_id, int answer_id, int answer_option) {
+bool ResourceAttempt::update_answer(int attempt_id, int answer_id, int answer_option) {
     pqxx::work txn(conn);
     pqxx::result test_att_check = txn.exec_params(
         "SELECT t.is_active, att.status FROM attempts att JOIN tests t ON att.test_id = t.id WHERE att.id = $1",
@@ -64,13 +64,14 @@ void ResourceAttempt::update_answer(int attempt_id, int answer_id, int answer_op
     );
     if (test_att_check[0]["status"].as<std::string>() == "active" && test_att_check[0]["is_active"].as<bool>())
     {
-        txn.exec_params(
+        auto res = txn.exec_params(
             "UPDATE answers SET answer_option = $1 WHERE id = $2",
             answer_option, answer_id
         );
-        txn.commit();
+		if (res.affected_rows() == 0) return false;
+		txn.commit();
     }
-
+	return true;
 }
 
 // 3.Завершить попытку
@@ -81,7 +82,6 @@ void ResourceAttempt::finish_attempt(int attempt_id) {
         "SELECT t.is_active, att.status FROM attempts att JOIN tests t ON att.test_id = t.id WHERE att.id = $1",
         attempt_id
     );
-	try{
     if (test_att_check[0]["status"].as<std::string>() == "active" && test_att_check[0]["is_active"].as<bool>())
     {
 
@@ -97,8 +97,6 @@ void ResourceAttempt::finish_attempt(int attempt_id) {
 
         txn.commit();
     }
-	}
-	catch(...){}
 
 }
 

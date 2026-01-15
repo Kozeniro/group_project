@@ -13,6 +13,7 @@ PermissionInfo PermissionChecker::check(const httplib::Request& req, const std::
         return info;
     }
     std::string token = auth_header.substr(7);
+	info.token = token;
     auto decoded = jwt::decode(token);
     try {
         auto verifier = jwt::verify()
@@ -42,6 +43,13 @@ PermissionInfo PermissionChecker::check(const httplib::Request& req, const std::
                 return info;
             }
         }
+		std::vector<std::string> roles;
+        auto roles_claim = decoded.get_payload_claim("roles").as_array();
+		for (const auto& r : roles_claim) {
+			roles.push_back(r.get<std::string>());
+		}
+        
+        info.roles = roles;
         
 
         info.status = 200;

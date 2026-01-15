@@ -20,19 +20,21 @@ CourseInfo ResourceCourse::get_info(int course_id) {
         "SELECT name, description, instructor_id FROM courses WHERE id = $1 AND is_exists = TRUE",
         course_id
     );
-	if (res.empty()) return {"","",-1};
+	if (res.empty()) throw std::runtime_error("No course");
 	std::string description = (!res[0]["description"].is_null() ? res[0]["description"].as<std::string>() : "");
     return {res[0]["name"].as<std::string>(),description,res[0]["instructor_id"].as<int>()};
 }
 
 // 3.Изменить информацию о дисциплине
-void ResourceCourse::update_info(int course_id, const std::string& name, const std::string& description) {
+bool ResourceCourse::update_info(int course_id, const std::string& name, const std::string& description) {
     pqxx::work txn(conn);
-    txn.exec_params(
+    auto res = txn.exec_params(
         "UPDATE courses SET name = $1, description = $2 WHERE id = $3 AND is_exists = TRUE",
         name, description, course_id
     );
-    txn.commit();
+    if (res.affected_rows() == 0) return false;
+	txn.commit();
+	return true;
 }
 
 // 4.Посмотреть тесты дисциплины
@@ -57,13 +59,13 @@ bool ResourceCourse::is_test_active(int course_id, int test_id) {
         test_id, course_id
     );
 	if (!res.empty()) return res[0]["is_active"].as<bool>();
-    return false;
+    throw std::runtime_error("No test");
 }
 
 // 6.Активировать/Деактивировать тест
-void ResourceCourse::set_test_active(int course_id, int test_id, bool active) {
+bool ResourceCourse::set_test_active(int course_id, int test_id, bool active) {
     pqxx::work txn(conn);
-    txn.exec_params(
+    auto res = txn.exec_params(
         "UPDATE tests SET is_active = $1 WHERE id = $2 AND course_id = $3",
         active, test_id, course_id
     );
@@ -73,7 +75,9 @@ void ResourceCourse::set_test_active(int course_id, int test_id, bool active) {
             test_id
         );
     }
-    txn.commit();
+    if (res.affected_rows() == 0) return false;
+	txn.commit();
+	return true;
 }
 
 // 7.Добавить тест в дисциплину
@@ -92,13 +96,15 @@ int ResourceCourse::add_test(int course_id, const std::string& test_name) {
 }
 
 // 8.Удалить тест из дисциплины 
-void ResourceCourse::remove_test(int course_id, int test_id) {
+bool ResourceCourse::remove_test(int course_id, int test_id) {
     pqxx::work txn(conn);
-    txn.exec_params(
+    auto res = txn.exec_params(
         "UPDATE tests SET is_exists = FALSE WHERE id = $1 AND course_id = $2",
         test_id, course_id
     );
-    txn.commit();
+    if (res.affected_rows() == 0) return false;
+	txn.commit();
+	return true;
 }
 
 // 9.Посмотреть список студентов дисциплины
@@ -126,13 +132,15 @@ void ResourceCourse::add_user(int user_id, int course_id) {
 }
 
 // 11.Отчислить пользователя с дисциплины
-void ResourceCourse::remove_user(int user_id, int course_id) {
+bool ResourceCourse::remove_user(int user_id, int course_id) {
     pqxx::work txn(conn);
-    txn.exec_params(
+    auto res = txn.exec_params(
         "DELETE FROM courses_users WHERE course_id = $1 AND user_id = $2",
         course_id, user_id
     );
-    txn.commit();
+    if (res.affected_rows() == 0) return false;
+	txn.commit();
+	return true;
 }
 
 // 12.Создать дисциплину
@@ -147,8 +155,10 @@ int ResourceCourse::create_course(const std::string& name, const std::string& de
 }
 
 // 13.Удалить дисциплину
-void ResourceCourse::delete_course(int course_id) {
+bool ResourceCourse::delete_course(int course_id) {
     pqxx::work txn(conn);
-    txn.exec_params("UPDATE courses SET is_exists = FALSE WHERE id = $1", course_id);
-    txn.commit();
+    auto res = txn.exec_params("UPDATE courses SET is_exists = FALSE WHERE id = $1", course_id);
+    if (res.affected_rows() == 0) return false;
+	txn.commit();
+	return true;
 }

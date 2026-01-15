@@ -13,6 +13,7 @@ void create_tables(pqxx::connection& conn){
 						id SERIAL PRIMARY KEY,\
 						auth_id VARCHAR(255) NOT NULL, \
 						full_name VARCHAR(255),\
+						notifications JSONB,\
 						is_blocked BOOLEAN NOT NULL DEFAULT FALSE\
 					);";
 			else if (t=="roles")

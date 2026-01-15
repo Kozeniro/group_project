@@ -18,7 +18,9 @@ void Api_resAnswers::create_answer(const httplib::Request& req, httplib::Respons
     }
     int attempt_id = json_body["attempt_id"].get<int>();
     int question_id = json_body["question_id"].get<int>();
+	try{
     resAnswers.create_answer(attempt_id, question_id);
+	}catch(...){res.status = 404;}
 }
 
 void Api_resAnswers::get_answer(const httplib::Request& req, httplib::Response& res) {
@@ -30,7 +32,7 @@ void Api_resAnswers::get_answer(const httplib::Request& req, httplib::Response& 
     if (p_info.status==403 && resAnswers.get_user(answer_id)!=p_info.user_id && resAnswers.get_instructor(answer_id)!=p_info.user_id){
         res.status = p_info.status; return;
     }
-    
+    try{
     AnswerLine answer = resAnswers.get_answer(answer_id);
     nlohmann::json json_res = {
         {"question_id", answer.question_id},
@@ -38,6 +40,7 @@ void Api_resAnswers::get_answer(const httplib::Request& req, httplib::Response& 
         {"answer_option", answer.option}
     };
     res.set_content(json_res.dump(), "application/json");
+	} catch(...){res.status = 404;}
 }
 
 void Api_resAnswers::update_answer(const httplib::Request& req, httplib::Response& res) {
@@ -59,7 +62,8 @@ void Api_resAnswers::update_answer(const httplib::Request& req, httplib::Respons
     if (p_info.status==403 && resAnswers.get_user(answer_id)!=p_info.user_id){
         res.status = p_info.status; return;
     }
-    resAnswers.update_answer(answer_id, answer_option);
+	try{resAnswers.update_answer(answer_id, answer_option);}
+	catch (...) {res.status = 403;}
 }
 
 void Api_resAnswers::delete_answer(const httplib::Request& req, httplib::Response& res) {
@@ -71,5 +75,6 @@ void Api_resAnswers::delete_answer(const httplib::Request& req, httplib::Respons
     if (p_info.status==403 && resAnswers.get_user(answer_id)!=p_info.user_id){
         res.status = p_info.status; return;
     }
-    resAnswers.delete_answer(answer_id);
+    try{resAnswers.delete_answer(answer_id);}
+	catch (...) {res.status = 403;}
 }

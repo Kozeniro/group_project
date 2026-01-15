@@ -26,6 +26,7 @@ void Api_resQuestions::get_info(const httplib::Request& req, httplib::Response& 
     }
     int question_id = std::stoi(req.matches[1]);
     int version = std::stoi(req.get_param_value("version"));
+	try{
     QuestionInfo info = resQuestions.get_info(question_id, version);
     if (p_info.status==403 && 
         (info.author_id != p_info.user_id && (!resQuestions.check_presence(question_id, p_info.user_id)))){
@@ -39,6 +40,7 @@ void Api_resQuestions::get_info(const httplib::Request& req, httplib::Response& 
         {"correct_option", info.correct_option}
     };
     res.set_content(json_res.dump(), "application/json");
+	}catch(...){res.status = 404;}
 }
 
 void Api_resQuestions::update_question(const httplib::Request& req, httplib::Response& res) {
@@ -66,8 +68,9 @@ void Api_resQuestions::update_question(const httplib::Request& req, httplib::Res
     std::string text = json_body["text"].get<std::string>();
     nlohmann::json options = json_body["options"];
     int correct_option = json_body["correct_option"].get<int>();
-
+	try{
     resQuestions.update_question(question_id, name, text, options, correct_option, author_id);
+	}catch(...){res.status = 404;}
 }
 
 
@@ -91,6 +94,7 @@ void Api_resQuestions::create_question(const httplib::Request& req, httplib::Res
     nlohmann::json options = json_body["options"];
     int correct_option = json_body["correct_option"].get<int>();
     int new_question_id = resQuestions.create_question(name, text, options, correct_option, author_id);
+	if (new_question_id ==-1) {res.status = 404; return;}
     res.set_content(std::to_string(new_question_id), "text/plain");
 }
 
@@ -104,5 +108,5 @@ void Api_resQuestions::delete_question(const httplib::Request& req, httplib::Res
     if (p_info.status==403 && info.author_id != p_info.user_id){
         res.status = p_info.status; return;
     }
-    resQuestions.delete_question(question_id);
+    if(!resQuestions.delete_question(question_id)) res.status = 403;
 }

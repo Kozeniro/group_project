@@ -22,23 +22,26 @@ int ResourceTests::get_author(int question_id){
 
 
 // 1.Удалить вопрос из теста
-void ResourceTests::remove_question(int test_id, int question_id) {
+bool ResourceTests::remove_question(int test_id, int question_id) {
     pqxx::work txn(conn);
     pqxx::result was_attempted = txn.exec_params(
         "SELECT EXISTS (SELECT 1 FROM attempts WHERE test_id = $1)",
         test_id
     );
     if (!was_attempted[0][0].as<bool>()) {
-        txn.exec_params(
+        auto res = txn.exec_params(
             "DELETE FROM tests_questions WHERE test_id = $1 AND question_id = $2",
             test_id, question_id
         );
+		if (res.affected_rows() == 0) return false;
     }
-    txn.commit();
+    else return false;
+	txn.commit();
+	return true;
 }
 
 // 2.Добавить вопрос в тест 
-void ResourceTests::add_question(int test_id, int question_id) {
+bool ResourceTests::add_question(int test_id, int question_id) {
     pqxx::work txn(conn);
 
     pqxx::result was_attempted = txn.exec_params(
@@ -46,18 +49,20 @@ void ResourceTests::add_question(int test_id, int question_id) {
         test_id
     );
     if (!was_attempted[0][0].as<bool>()) {
-        txn.exec_params(
+        auto res = txn.exec_params(
             "INSERT INTO tests_questions (test_id, question_id, position) VALUES \
         ($1, $2, (SELECT COALESCE(MAX(position), 0)+1 FROM tests_questions WHERE test_id = $1))",
             test_id, question_id
         );
+		if (res.affected_rows() == 0) return false;
     }
-
-    txn.commit();
+	else return false;
+	txn.commit();
+	return true;
 }
 
 // 3.Изменить порядок вопросов в тесте
-void ResourceTests::set_question_order(int test_id, const std::vector<int>& question_ids) {
+bool ResourceTests::set_question_order(int test_id, const std::vector<int>& question_ids) {
     pqxx::work txn(conn);
 
     pqxx::result was_attempted = txn.exec_params(
@@ -73,7 +78,9 @@ void ResourceTests::set_question_order(int test_id, const std::vector<int>& ques
             );
         }
     }
-    txn.commit();
+    else return false;
+	txn.commit();
+	return true;
 }
 
 // 4.Посмотреть список пользователей, прошедших тест
@@ -95,7 +102,7 @@ std::vector<ScoresUsers> ResourceTests::get_users_scores(int test_id) {
     std::vector<ScoresUsers> results;
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params(
-        "SELECT user_id, score FROM attempts WHERE test_id = $1 AND score IS NOT NULL",
+        "SELECT user_id, score FROM attempts WHERE test_id = $1",
         test_id
     );
     for (const auto& row : res) {

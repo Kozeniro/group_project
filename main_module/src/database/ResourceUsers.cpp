@@ -9,6 +9,19 @@ int ResourceUsers::get_user_id(std::string auth_id) {
     txn.commit();
 	return res[0][0].as<int>();
 }
+//0.1. Получить уведомления пользователя
+nlohmann::json ResourceUsers::get_notifications(int user_id){
+	pqxx::work txn(conn);
+	pqxx::result res = txn.exec_params("SELECT notifications FROM users WHERE user_id = $1", user_id);
+	return nlohmann::json::parse(res[0]["notifications"].as<std::string>());
+}
+
+//0.2. Удалить уведомления пользователя
+void ResourceUsers::delete_notifications(int user_id){
+	pqxx::work txn(conn);
+	txn.exec_params("UPDATE users SET notifications = '[]' WHERE id = $1", user_id);
+	txn.commit();
+}
 
 // 1. Посмотреть список пользователей
 std::vector<UserLine> ResourceUsers::get_all() {
@@ -33,18 +46,21 @@ std::string ResourceUsers::get_name(int user_id) {
 }
 
 // 3. Изменить ФИО пользователя
-void ResourceUsers::update_name(int user_id, const std::string& new_name) {
+bool ResourceUsers::update_name(int user_id, const std::string& new_name) {
     pqxx::work txn(conn);
-    txn.exec_params("UPDATE users SET full_name = $1 WHERE id = $2", new_name, user_id);
-    txn.commit();
+    auto res = txn.exec_params("UPDATE users SET full_name = $1 WHERE id = $2", new_name, user_id);
+    if (res.affected_rows() == 0) return false;
+	txn.commit();
+	return true;
 }
 
 // 4. Посмотреть информацию о пользователе (курсы, оценки, тесты)
 std::vector<std::string> ResourceUsers::get_info(int user_id, Info info_type) {
     std::vector<std::string> info;
-
     pqxx::work txn(conn);
-
+	
+	auto exists = txn.exec_params("SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)",user_id);
+	if (!exists[0][0].as<bool>()) throw std::runtime_error("No user");
     switch (info_type) {
         case Courses:
         {
@@ -86,6 +102,8 @@ std::vector<std::string> ResourceUsers::get_info(int user_id, Info info_type) {
 std::vector<std::string> ResourceUsers::get_roles(int user_id) {
     std::vector<std::string> roles;
     pqxx::work txn(conn);
+	auto exists = txn.exec_params("SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)",user_id);
+	if (!exists[0][0].as<bool>()) throw std::runtime_error("No user");
     pqxx::result res = txn.exec_params("SELECT r.name FROM roles r \
         JOIN users_roles ur ON r.id = ur.role_id WHERE ur.user_id = $1",
         user_id
@@ -119,8 +137,10 @@ bool ResourceUsers::is_blocked(int user_id) {
 }
 
 // 8. Заблокировать/разблокировать пользователя
-void ResourceUsers::set_blocked(int user_id, bool blocked) {
+bool ResourceUsers::set_blocked(int user_id, bool blocked) {
     pqxx::work txn(conn);
-    txn.exec_params("UPDATE users SET is_blocked = $1 WHERE id = $2", blocked, user_id);
-    txn.commit();
+    auto res = txn.exec_params("UPDATE users SET is_blocked = $1 WHERE id = $2", blocked, user_id);
+    if (res.affected_rows() == 0) return false;
+	txn.commit();
+	return true;
 }

@@ -21,7 +21,7 @@ public:
     bool user_has_test(int user_id, int test_id);
     int get_user(int attempt_id);
     int create_attempt(int user_id, int test_id);
-    void update_answer(int attempt_id, int answer_id, int answer_option);
+    bool update_answer(int attempt_id, int answer_id, int answer_option);
     void finish_attempt(int attempt_id);
     AttemptInfo get_info(int user_id, int test_id);
 };

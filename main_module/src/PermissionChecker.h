@@ -7,6 +7,8 @@
 struct PermissionInfo{
     int status;
     int user_id;
+	std::string token;
+	std::vector<std::string> roles;
 };
 
 class PermissionChecker{

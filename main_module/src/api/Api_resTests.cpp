@@ -13,7 +13,7 @@ void Api_resTests::remove_question(const httplib::Request& req, httplib::Respons
         res.status = p_info.status; return;
     }
     int question_id = std::stoi(req.matches[2]);
-    resTests.remove_question(test_id, question_id);
+    if(!resTests.remove_question(test_id, question_id))res.status = 403;
 }
 
 void Api_resTests::add_question(const httplib::Request& req, httplib::Response& res) {
@@ -35,7 +35,7 @@ void Api_resTests::add_question(const httplib::Request& req, httplib::Response& 
     if (p_info.status==403 && resTests.get_instructor(test_id) != p_info.user_id && resTests.get_author(question_id)!=p_info.user_id){
         res.status = p_info.status; return;
     }
-    resTests.add_question(test_id, question_id);
+    if(!resTests.add_question(test_id, question_id))res.status = 403;
 }
 
 void Api_resTests::set_question_order(const httplib::Request& req, httplib::Response& res) {
@@ -57,7 +57,7 @@ void Api_resTests::set_question_order(const httplib::Request& req, httplib::Resp
     if (p_info.status==403 && resTests.get_instructor(test_id) != p_info.user_id){
         res.status = p_info.status; return;
     }
-    resTests.set_question_order(test_id, question_ids);
+    if(!resTests.set_question_order(test_id, question_ids))res.status = 403;
 }
 
 void Api_resTests::get_users_completed(const httplib::Request& req, httplib::Response& res) {

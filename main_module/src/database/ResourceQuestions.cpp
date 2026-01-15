@@ -34,7 +34,7 @@ QuestionInfo ResourceQuestions::get_info(int question_id, int version) {
         WHERE local_id = $1 AND version = $2 AND is_exists = TRUE",
         question_id, version
     );
-	if (res.empty()) return {"","","",-1,-1};
+	if (res.empty()) throw std::runtime_error("No question");
     return {
         res[0]["name"].as<std::string>(),
         res[0]["text"].as<std::string>(),
@@ -57,11 +57,13 @@ void ResourceQuestions::update_question(int question_id, const std::string& name
 		);
 		txn.commit();
 	}
+	else throw std::runtime_error("No question");
 }
 
 // 4.Создать вопрос
 int ResourceQuestions::create_question(const std::string& name, const std::string& text, const nlohmann::json& options, int correct_option, int author_id) {
     pqxx::work txn(conn);
+	try{
     pqxx::result res = txn.exec_params(
         "INSERT INTO questions (local_id, version, name, text, options, correct_option, author_id, is_exists) \
         VALUES ((SELECT COALESCE(MAX(local_id),0)+1 FROM questions), 1, $1, $2, $3, $4, $5, TRUE) RETURNING local_id",
@@ -69,20 +71,24 @@ int ResourceQuestions::create_question(const std::string& name, const std::strin
     );
     txn.commit();
     return res[0]["local_id"].as<int>();
+	} catch(...) {return -1;}
 }
 
 // 5.Удалить вопрос
-void ResourceQuestions::delete_question(int question_id) {
+bool ResourceQuestions::delete_question(int question_id) {
     pqxx::work txn(conn);
     pqxx::result is_in_tests = txn.exec_params(
         "SELECT EXISTS (SELECT 1 FROM tests_questions WHERE question_id = $1)",
         question_id
     );
     if (!(is_in_tests[0][0].as<bool>())) {
-        txn.exec_params(
+        auto res = txn.exec_params(
             "UPDATE questions SET is_exists = FALSE WHERE local_id = $1",
             question_id
         );
+		if (res.affected_rows() == 0) return false;
     }
-    txn.commit();
+	else return false;
+	txn.commit();
+	return true;
 }

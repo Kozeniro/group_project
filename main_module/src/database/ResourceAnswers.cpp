@@ -33,7 +33,7 @@ void ResourceAnswers::create_answer(int attempt_id, int question_id) {
     txn.commit();
 }
 
-// 2. Посмотреть ответ (ID вопроса выбранный вариант)
+// 2. Посмотреть ответ (ID вопроса - выбранный вариант)
 AnswerLine ResourceAnswers::get_answer(int answer_id) {
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params(
@@ -58,6 +58,7 @@ void ResourceAnswers::update_answer(int answer_id, int new_option) {
         );
         txn.commit();
     }
+	else throw std::runtime_error("Isn't active");
 }
 
 // 4. Удалить ответ (answer_option = -1)
@@ -74,5 +75,6 @@ void ResourceAnswers::delete_answer(int answer_id) {
             answer_id
         );
     }
+	else throw std::runtime_error("Isn't active");
     txn.commit();
 }

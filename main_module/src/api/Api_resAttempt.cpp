@@ -23,6 +23,7 @@ void Api_resAttempt::create_attempt(const httplib::Request& req, httplib::Respon
         res.status = p_info.status; return;
     }
     int attempt_id = resAttempt.create_attempt(user_id, test_id);
+	if (attempt_id = -1) {res.status=403; return;}
     res.set_content(std::to_string(attempt_id), "text/plain");
 }
 
@@ -46,7 +47,7 @@ void Api_resAttempt::update_answer(const httplib::Request& req, httplib::Respons
     }
     int answer_id = json_body["answer_id"].get<int>();
     int answer_option = json_body["answer_option"].get<int>();
-    resAttempt.update_answer(attempt_id, answer_id, answer_option);
+    if(!resAttempt.update_answer(attempt_id, answer_id, answer_option)) res.status = 404;
 }
 
 void Api_resAttempt::finish_attempt(const httplib::Request& req, httplib::Response& res) {
@@ -58,7 +59,9 @@ void Api_resAttempt::finish_attempt(const httplib::Request& req, httplib::Respon
     if (p_info.status==403 && resAttempt.get_user(attempt_id)!=p_info.user_id){
         res.status = p_info.status; return;
     }
+	try{
     resAttempt.finish_attempt(attempt_id);
+	} catch(...) {res.status = 404;}
 }
 
 void Api_resAttempt::get_info(const httplib::Request& req, httplib::Response& res) {
@@ -68,6 +71,7 @@ void Api_resAttempt::get_info(const httplib::Request& req, httplib::Response& re
     }
 	int user_id = std::stoi(req.get_param_value("user_id"));
     int test_id = std::stoi(req.get_param_value("test_id"));
+	try{
     AttemptInfo info = resAttempt.get_info(user_id, test_id);
     if (p_info.status==403 && p_info.user_id!=user_id && p_info.user_id!=info.instructor_id){
         res.status = p_info.status; return;
@@ -83,6 +87,7 @@ void Api_resAttempt::get_info(const httplib::Request& req, httplib::Response& re
             });
     }
     res.set_content(json_res.dump(), "application/json");
+	} catch(...){res.status = 404;}
 }
 
 

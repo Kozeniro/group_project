@@ -28,6 +28,8 @@ void register_routes(httplib::Server& svr,
 });
 	//Resource USERS
 	svr.Get(R"(/api/user_id)", [&](const httplib::Request& req, httplib::Response& res) {api_users.get_user_id(req, res);});
+	svr.Get(R"(/notifications)", [&](const httplib::Request& req, httplib::Response& res) {api_users.get_notifications(req, res);});
+	svr.Delete(R"(/notifications)", [&](const httplib::Request& req, httplib::Response& res) {api_users.delete_notifications(req, res);});
 	svr.Get(R"(/api/users)", [&](const httplib::Request& req, httplib::Response& res) {api_users.get_all(req, res);});
 	svr.Get(R"(/api/users/(\d+)/name)", [&](const httplib::Request& req, httplib::Response& res) {api_users.get_name(req, res);});
 	svr.Put(R"(/api/users/(\d+)/name)", [&](const httplib::Request& req, httplib::Response& res) {api_users.update_name(req, res);});

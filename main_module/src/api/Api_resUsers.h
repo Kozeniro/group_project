@@ -10,6 +10,8 @@ private:
 	PermissionChecker& permChecker;
 public:
 	Api_resUsers(ResourceUsers& resUsers, PermissionChecker& permChecker);
+	void get_notifications(const httplib::Request& req, httplib::Response& res);
+	void delete_notifications(const httplib::Request& req, httplib::Response& res);
 	void get_user_id(const httplib::Request& req, httplib::Response& res);
 	void get_all(const httplib::Request& req, httplib::Response& res);
 	void get_name(const httplib::Request& req, httplib::Response& res);

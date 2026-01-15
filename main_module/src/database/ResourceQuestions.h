@@ -31,6 +31,6 @@ public:
     QuestionInfo get_info(int question_id, int version);
     void update_question(int question_id, const std::string& name, const std::string& text, const nlohmann::json& options, int correct_option, int author_id);
     int create_question(const std::string& name, const std::string& text, const nlohmann::json& options, int correct_option, int author_id);
-    void delete_question(int question_id);
+    bool delete_question(int question_id);
 };
 
