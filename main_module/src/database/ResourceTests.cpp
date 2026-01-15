@@ -11,7 +11,7 @@ int ResourceTests::get_instructor(int test_id){
     );
     return instructor_id[0][0].as<int>();
 }
-// 0.0.0. Получить id автора вопроса
+// 0.0. Получить id автора вопроса
 int ResourceTests::get_author(int question_id){
     pqxx::work txn(conn);
     pqxx::result author_id = txn.exec_params("SELECT author_id FROM questions WHERE local_id = $1",
@@ -19,7 +19,29 @@ int ResourceTests::get_author(int question_id){
     );
     return author_id[0][0].as<int>();
 }
+// 0.0. Есть ли тест у пользователя
+bool ResourceTests::check_presence(int test_id, int user_id) {
+    pqxx::work txn(conn);
+    pqxx::result res = txn.exec_params("SELECT EXISTS (SELECT 1 FROM tests t JOIN courses c ON t.course_id = c.id \
+		JOIN courses_users cu ON c.id = cu.course_id WHERE t.id = $1 AND cu.user_id = $2);",
+        test_id, user_id
+    );
+    return res[0][0].as<bool>();
+}
 
+// 0.Посмотреть вопросы в тесте
+std::vector<int> ResourceTests::get_questions(int test_id) {
+    std::vector<int> questions;
+    pqxx::work txn(conn);
+    pqxx::result res = txn.exec_params(
+        "SELECT question_id FROM tests_questions WHERE test_id = $1",
+        test_id
+    );
+    for (const auto& row : res) {
+        questions.push_back(row["question_id"].as<int>());
+    }
+    return questions;
+}
 
 // 1.Удалить вопрос из теста
 bool ResourceTests::remove_question(int test_id, int question_id) {

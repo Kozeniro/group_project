@@ -4,6 +4,7 @@
 #include <string>
 
 struct AnswerLine {
+	int id;
     int question_id;
     int question_ver;
     int option;

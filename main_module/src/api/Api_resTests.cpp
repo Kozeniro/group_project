@@ -2,6 +2,19 @@
 
 Api_resTests::Api_resTests(ResourceTests& resTests, PermissionChecker& permChecker) : resTests(resTests), permChecker(permChecker) {};
 
+void Api_resTests::get_questions(const httplib::Request& req, httplib::Response& res) {
+    PermissionInfo p_info = permChecker.check(req, "test:quest:add");
+    if (p_info.status==401 || p_info.status==418) {
+        res.status = p_info.status; return;
+    }
+    int test_id = std::stoi(req.matches[1]);
+    if (p_info.status==403 && resTests.get_instructor(test_id)!= p_info.user_id && !resTests.check_presence(test_id, p_info.user_id)){
+        res.status = p_info.status; return;
+    }
+    auto questions = resTests.get_questions(test_id);
+    nlohmann::json json_res = questions;
+    res.set_content(json_res.dump(), "application/json");
+}
 
 void Api_resTests::remove_question(const httplib::Request& req, httplib::Response& res) {
     PermissionInfo p_info = permChecker.check(req, "test:quest:del");

@@ -86,7 +86,8 @@ void ResourceAttempt::finish_attempt(int attempt_id) {
     {
 
         pqxx::result score = txn.exec_params("SELECT COUNT(*) FROM answers a JOIN questions q \
-            ON a.question_id = q.id WHERE a.attempt_id = $1  AND a.answer_option = q.correct_option;", 
+            ON a.question_id = q.local_id AND a.question_version = q.version \
+			WHERE a.attempt_id = $1  AND a.answer_option = q.correct_option;", 
             attempt_id
         );
 
@@ -109,14 +110,14 @@ AttemptInfo ResourceAttempt::get_info(int user_id, int test_id) {
     );
 
     pqxx::result ans_res = txn.exec_params(
-        "SELECT question_id, question_version, answer_option FROM answers ans \
+        "SELECT id, question_id, question_version, answer_option FROM answers ans \
         JOIN attempts att ON ans.attempt_id = att.id WHERE att.user_id = $1 AND att.test_id = $2",
         user_id, test_id
     );
 
     std::vector<AnswerLine> ans_vec;
     for (const auto& row : ans_res) {
-        ans_vec.push_back(AnswerLine{ row["question_id"].as<int>(), row["question_version"].as<int>(), row["answer_option"].as<int>() });
+        ans_vec.push_back(AnswerLine{ row["id"].as<int>(), row["question_id"].as<int>(), row["question_version"].as<int>(), row["answer_option"].as<int>() });
     }
 
     pqxx::result instructor_id = txn.exec_params(

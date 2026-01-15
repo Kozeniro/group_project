@@ -59,6 +59,7 @@ void register_routes(httplib::Server& svr,
 	svr.Post(R"(/api/questions)", [&](const httplib::Request& req, httplib::Response& res) {api_questions.create_question(req, res);});
 	svr.Delete(R"(/api/questions/(\d+))", [&](const httplib::Request& req, httplib::Response& res) {api_questions.delete_question(req, res);});
 	//Resource TESTS
+	svr.Get(R"(/api/tests/(\d+)/questions)", [&](const httplib::Request& req, httplib::Response& res) {api_tests.get_questions(req, res);});
 	svr.Delete(R"(/api/tests/(\d+)/questions/(\d+))", [&](const httplib::Request& req, httplib::Response& res) {api_tests.remove_question(req, res);});
 	svr.Post(R"(/api/tests/(\d+)/questions)", [&](const httplib::Request& req, httplib::Response& res) {api_tests.add_question(req, res);});
 	svr.Put(R"(/api/tests/(\d+)/questions)", [&](const httplib::Request& req, httplib::Response& res) {api_tests.set_question_order(req, res);});

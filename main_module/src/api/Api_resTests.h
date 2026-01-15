@@ -9,6 +9,7 @@ private:
 	PermissionChecker& permChecker;
 public:
 	Api_resTests(ResourceTests& resTests, PermissionChecker& permChecker);
+	void get_questions(const httplib::Request& req, httplib::Response& res);
 	void remove_question(const httplib::Request& req, httplib::Response& res);
 	void add_question(const httplib::Request& req, httplib::Response& res);
 	void set_question_order(const httplib::Request& req, httplib::Response& res);

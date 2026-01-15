@@ -26,6 +26,8 @@ public:
 	ResourceTests(pqxx::connection& conn);
 	int get_instructor(int test_id);
 	int get_author(int question_id);
+	bool check_presence(int test_id, int user_id);
+	std::vector<int> get_questions(int test_id);
 	bool remove_question(int test_id, int question_id);
 	bool add_question(int test_id, int question_id);
 	bool set_question_order(int test_id, const std::vector<int>& question_ids);

@@ -91,7 +91,7 @@ void create_tables(pqxx::connection& conn){
 					CREATE TABLE "+t+" (\
 						id SERIAL PRIMARY KEY,\
 						attempt_id INTEGER NOT NULL REFERENCES attempts(id),\
-						question_id INTEGER NOT NULL REFERENCES questions(id),\
+						question_id INTEGER NOT NULL,\
 						question_version INTEGER NOT NULL,\
 						answer_option INTEGER NOT NULL DEFAULT -1\
 					);";

@@ -78,7 +78,7 @@ int ResourceQuestions::create_question(const std::string& name, const std::strin
 bool ResourceQuestions::delete_question(int question_id) {
     pqxx::work txn(conn);
     pqxx::result is_in_tests = txn.exec_params(
-        "SELECT EXISTS (SELECT 1 FROM tests_questions WHERE question_id = $1)",
+        "SELECT EXISTS (SELECT 1 FROM tests_questions WHERE local_id = $1)",
         question_id
     );
     if (!(is_in_tests[0][0].as<bool>())) {

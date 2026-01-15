@@ -14,8 +14,9 @@ int ResourceAnswers::get_user(int answer_id){
 // 0.0. Получить id преподавателя дисциплины
 int ResourceAnswers::get_instructor(int answer_id){
     pqxx::work txn(conn);
-    pqxx::result res = txn.exec_params("SELECT c.instructor_id FROM answers a JOIN questions q ON a.question_id = q.id \
-        JOIN tests_questions tq ON q.id = tq.question_id JOIN tests t ON tq.test_id = t.id \
+    pqxx::result res = txn.exec_params("SELECT c.instructor_id FROM answers a \
+		JOIN questions q ON a.question_id = q.local_id AND a.question_version = q.version\
+        JOIN tests_questions tq ON q.local_id = tq.question_id JOIN tests t ON tq.test_id = t.id \
         JOIN courses c ON t.course_id = c.id WHERE a.id = $1",
         answer_id
     );
@@ -27,7 +28,7 @@ void ResourceAnswers::create_answer(int attempt_id, int question_id) {
     pqxx::work txn(conn);
     txn.exec_params(
         "INSERT INTO answers (attempt_id, question_id, question_version, answer_option) \
-        VALUES ($1, $2,(SELECT MAX(version) FROM questions WHERE id = $2), -1)",
+        VALUES ($1, $2,(SELECT MAX(version) FROM questions WHERE local_id = $2), -1)",
         attempt_id, question_id
     );
     txn.commit();
@@ -37,10 +38,10 @@ void ResourceAnswers::create_answer(int attempt_id, int question_id) {
 AnswerLine ResourceAnswers::get_answer(int answer_id) {
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params(
-        "SELECT question_id, question_version, answer_option FROM answers WHERE id = $1",
+        "SELECT id, question_id, question_version, answer_option FROM answers WHERE id = $1",
         answer_id
     );
-    return { res[0]["question_id"].as<int>(), res[0]["question_version"].as<int>(), res[0]["answer_option"].as<int>() };
+    return { res[0]["id"].as<int>(), res[0]["question_id"].as<int>(), res[0]["question_version"].as<int>(), res[0]["answer_option"].as<int>() };
 }
 
 // 3. Изменить ответ
