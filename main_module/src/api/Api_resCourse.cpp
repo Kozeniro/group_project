@@ -97,7 +97,9 @@ void Api_resCourse::is_test_active(const httplib::Request& req, httplib::Respons
     int test_id = std::stoi(req.matches[2]);
 	try{
     bool is_active = resCourse.is_test_active(course_id, test_id);
-    res.set_content(is_active ? "true" : "false", "text/plain");
+    nlohmann::json json_response;
+    json_response["activity"] = is_active;
+    res.set_content(json_response.dump(), "application/json");
 	}catch(...){res.status = 404;}
 }
 
@@ -151,7 +153,9 @@ void Api_resCourse::add_test(const httplib::Request& req, httplib::Response& res
     std::string test_name = body_json["test_name"].get<std::string>();
     int new_test_id = resCourse.add_test(course_id, test_name);
 	if (new_test_id = -1) {res.status = 404; return;}
-    res.set_content(std::to_string(new_test_id), "text/plain");
+    nlohmann::json json_response;
+    json_response["test_id"] = new_test_id;
+    res.set_content(json_response.dump(), "application/json");
 }
 
 void Api_resCourse::remove_test(const httplib::Request& req, httplib::Response& res) {
@@ -250,7 +254,9 @@ void Api_resCourse::create_course(const httplib::Request& req, httplib::Response
     std::string description = body_json["description"].get<std::string>();
     int instructor_id = body_json["instructor_id"].get<int>();
     int course_id = resCourse.create_course(name, description, instructor_id);
-    res.set_content(std::to_string(course_id), "text/plain");
+    nlohmann::json json_response;
+    json_response["course_id"] = course_id;
+    res.set_content(json_response.dump(), "application/json");
 }
 
 void Api_resCourse::delete_course(const httplib::Request& req, httplib::Response& res) {

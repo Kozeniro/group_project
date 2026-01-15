@@ -49,7 +49,9 @@ void Api_resUsers::get_name(const httplib::Request& req, httplib::Response& res)
     int user_id = std::stoi(req.matches[1]);
     std::string full_name = resUsers.get_name(user_id);
 	if (full_name=="") {res.status = 404; return;}
-    res.set_content(full_name, "text/plain");
+    nlohmann::json json_response;
+	json_response["name"] = full_name;
+	res.set_content(json_response.dump(), "application/json");
 }
 
 void Api_resUsers::update_name(const httplib::Request& req, httplib::Response& res) {
@@ -173,7 +175,10 @@ void Api_resUsers::check_user_blocked(const httplib::Request& req, httplib::Resp
     
     int user_id = std::stoi(req.matches[1]);
     bool blocked = resUsers.is_blocked(user_id);
-    res.set_content(blocked ? "true" : "false", "text/plain");
+    nlohmann::json json_response;
+    json_response["blocked"] = blocked;
+
+    res.set_content(json_response.dump(), "application/json");
 }
 
 void Api_resUsers::set_user_blocked(const httplib::Request& req, httplib::Response& res) {

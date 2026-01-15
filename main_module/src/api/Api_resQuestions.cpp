@@ -95,7 +95,10 @@ void Api_resQuestions::create_question(const httplib::Request& req, httplib::Res
     int correct_option = json_body["correct_option"].get<int>();
     int new_question_id = resQuestions.create_question(name, text, options, correct_option, author_id);
 	if (new_question_id ==-1) {res.status = 404; return;}
-    res.set_content(std::to_string(new_question_id), "text/plain");
+    nlohmann::json json_response;
+    json_response["question_id"] = new_question_id;
+
+    res.set_content(json_response.dump(), "application/json");
 }
 
 void Api_resQuestions::delete_question(const httplib::Request& req, httplib::Response& res) {
