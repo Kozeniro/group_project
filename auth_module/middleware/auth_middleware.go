@@ -65,26 +65,3 @@ func (m *AuthMiddleware) RequireRole(role string) gin.HandlerFunc {
 		c.AbortWithStatus(http.StatusForbidden)
 	}
 }
-func (m *AuthMiddleware) RequirePermission(permission string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		permsAny, exists := c.Get("permissions")
-		if !exists {
-			c.AbortWithStatus(http.StatusForbidden)
-			return
-		}
-
-		perms, ok := permsAny.([]string)
-		if !ok {
-			c.AbortWithStatus(http.StatusForbidden)
-			return
-		}
-		for _, p := range perms {
-			if p == permission {
-				c.Next()
-				return
-			}
-		}
-
-		c.AbortWithStatus(http.StatusForbidden)
-	}
-}

@@ -82,11 +82,6 @@ func main() {
 		handlers.AdminHandler,
 	)
 
-	r.POST("/users",
-		authMiddleware.RequireAuth(),
-		authMiddleware.RequirePermission("user.create"),
-		handlers.CreateUserHandler,
-	)
 	changeRoleHandler := handlers.NewChangeMyRoleHandler(authService)
 
 	r.POST("/me/role",
