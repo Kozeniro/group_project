@@ -47,18 +47,11 @@ async def help_command(message: Message):
 /register (/reg) [email] [password] - зарегистрироваться с почтой и паролем
 /login (/l) - войти через GitHub или Яндекс
 /login (/l) [email] [password] - войти c почтой и паролем
-/enter_code [код] - войти по коду с другого устройства
 
 Для авторизованных:
+/student_help - команды для студентов
+/admin_help - команды для учителей(админов)
 /profile - мой профиль
-/mycourses - мои курсы
-/mytests - мои тесты
-/myscores - мои оценки
-/courses - все курсы
-/course [id] - информация о курсе
-/tests - все тесты
-/test [id] - информация о тесте
-/questions - все вопросы
 /my_permissions - мои права
 /refresh - обновить токены
 /logout - выйти

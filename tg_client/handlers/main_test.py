@@ -5,26 +5,8 @@ from aiogram.filters import Command, CommandObject
 from utils.token_utils import make_authorized_request
 from utils.redis_utils import get_user_state
 from utils.main_api_client import main_api_client
-import jwt
 
 router = Router()
-
-@router.message(Command("tests"))
-async def tests_command(message: Message):
-    chat_id = message.chat.id
-    tests, error = await make_authorized_request(chat_id, "GET", "/api/tests")
-    if error:
-        await message.answer(f"Ошибка: {error}")
-        return
-    if len(tests) > 0:
-        response_text = "Доступные тесты:\n\n"
-        for i in range(len(tests)):
-            name = tests[i].get('name')
-            test_id = tests[i].get('id')
-            response_text += f"{i+1}. {name} (ID: {test_id})\n\n"
-        await message.answer(response_text)
-    else:
-        await message.answer("Нет доступных тестов.")
 
 @router.message(Command("courses"))
 async def courses_command(message: Message):
@@ -44,7 +26,7 @@ async def courses_command(message: Message):
         
         if response.status_code == 200:
             courses = response.json()
-            if courses and len(courses) > 0:
+            if isinstance(courses, list) and len(courses) > 0:
                 response_text = "Доступные курсы:\n\n"
                 for i, course in enumerate(courses):
                     name = course.get('name', 'Без названия')
@@ -57,10 +39,10 @@ async def courses_command(message: Message):
             else:
                 await message.answer("Нет доступных курсов.")
         else:
-            await message.answer(f"Ошибка получения курсов: {response.status_code}")
+            await message.answer(f"Ошибка: {response.status_code}")
             
     except Exception as e:
-        await message.answer(f"Ошибка подключения: {e}")
+        await message.answer(f"Ошибка: {e}")
 
 @router.message(Command("profile"))
 async def profile_command(message: Message):
@@ -71,28 +53,54 @@ async def profile_command(message: Message):
         await message.answer("Сначала авторизуйтесь: /login")
         return
     
-    user_id = user_state.get('user_id')
+    result, error = await make_authorized_request(chat_id, "GET", "/api/user_id")
     
-    try:
-        response = await main_api_client.make_request(
-            "GET", 
-            f"/api/users/{user_id}/name", 
-            user_state.get('access_token')
-        )
-        
-        if response.status_code == 200:
-            name = response.json().get('name', 'Не указано')
-            await message.answer(f"Ваш профиль\nID: {user_id}\nИмя: {name}")
-        elif response.status_code == 404:
-            await message.answer(
-                f"Ваш профиль\nID: {user_id}\n"
-                f"Имя: Не указано (пользователь не найден в главном модуле)\n\n"
-            )
-        else:
-            await message.answer(f"Ваш профиль\nID: {user_id}\nОшибка: {response.status_code}")
+    if error:
+        user_id = user_state.get('user_id')
+        if not user_id:
+            await message.answer("Не удалось получить ваш ID")
+            return
+    else:
+        user_id = result.get('user_id') if isinstance(result, dict) else str(result)
+    
+    name_result, name_error = await make_authorized_request(chat_id, "GET", f"/api/users/{user_id}/name")
+    
+    response_text = f"Ваш профиль\nID: {user_id}\n"
+    
+    if name_error:
+        if "404" in name_error:
+            response_text += "Имя: Не указано\nСменить имя: /name"
             
-    except Exception as e:
-        await message.answer(f"Ваш профиль\nID: {user_id}\nОшибка подключения: {e}")
+        else:
+            response_text += f"Имя: Неизвестно (ошибка: {name_error})\nСменить имя: /name"
+    else:
+        if isinstance(name_result, dict):
+            name = name_result.get('name', 'Не указано')
+        else:
+            name = str(name_result) if name_result else 'Не указано'
+        response_text += f"Имя: {name}"
+    
+    await message.answer(response_text)
+
+@router.message(Command("id"))
+async def id_command(message: Message):
+    chat_id = message.chat.id
+    user_state = get_user_state(chat_id)
+    
+    result, error = await make_authorized_request(chat_id, "GET", "/api/user_id")
+    
+    if error:
+        user_id = user_state.get('user_id')
+        if user_id:
+            await message.answer(f"Ваш ID: {user_id}\n(из токена, эндпоинт /api/user_id недоступен)")
+        else:
+            await message.answer(f"Не удалось получить ID. Ошибка: {error}")
+    else:
+        if isinstance(result, dict):
+            user_id = result.get('user_id')
+            await message.answer(f"Ваш ID: {user_id}")
+        else:
+            await message.answer(f"Ответ: {result}")
 
 @router.message(Command("mycourses"))
 async def my_courses_command(message: Message):
@@ -101,7 +109,7 @@ async def my_courses_command(message: Message):
     user_id = user_state.get('user_id')
     
     if not user_id:
-        await message.answer("Не удалось получить ваш ID")
+        await message.answer("Не удалось получить ID")
         return
     
     result, error = await make_authorized_request(chat_id, "GET", f"/api/users/{user_id}/info", 
@@ -120,69 +128,13 @@ async def my_courses_command(message: Message):
     else:
         await message.answer("У вас нет курсов.")
 
-@router.message(Command("mytests"))
-async def my_tests_command(message: Message):
-    chat_id = message.chat.id
-    user_state = get_user_state(chat_id)
-    user_id = user_state.get('user_id')
-    
-    if not user_id:
-        await message.answer("Не удалось получить ваш ID")
-        return
-    
-    result, error = await make_authorized_request(chat_id, "GET", f"/api/users/{user_id}/info", 
-                                                 params={"info_type": "tests"})
-    if error:
-        await message.answer(f"Ошибка: {error}")
-        return
-    
-    if len(result) > 0:
-        response_text = "Ваши тесты:\n\n"
-        for i in range(len(result)):
-            test_id = result[i].get('id', '?')
-            name = result[i].get('name', 'Без названия')
-            response_text += f"{i+1}. {name} (ID: {test_id})\n\n"
-        await message.answer(response_text)
-    else:
-        await message.answer("У вас нет доступных тестов.")
-
-@router.message(Command("myscores"))
-async def my_scores_command(message: Message):
-    chat_id = message.chat.id
-    user_state = get_user_state(chat_id)
-    user_id = user_state.get('user_id')
-    
-    if not user_id:
-        await message.answer("Не удалось получить ваш ID")
-        return
-    
-    result, error = await make_authorized_request(chat_id, "GET", f"/api/users/{user_id}/info", 
-                                                 params={"info_type": "scores"})
-    if error:
-        await message.answer(f"Ошибка: {error}")
-        return
-    
-    if len(result) > 0:
-        response_text = "Ваши оценки:\n\n"
-        for i in range(len(result)):
-            test_name = result[i].get('test_name', 'Неизвестный тест')
-            score_value = result[i].get('score', 0)
-            max_score = result[i].get('max_score', 100)
-            response_text += f"{i+1}. {test_name}: {score_value}/{max_score}\n\n"
-        await message.answer(response_text)
-    else:
-        await message.answer("У вас нет оценок.")
-
 @router.message(Command("course"), ~F.text.contains(" "))
 async def course_no_args(message: Message):
-    await message.answer(
-        "Использование команды:\n"
-        "/course [ID курса]"
-    )
+    await message.answer("Использование: /course [ID курса]")
+
 @router.message(Command("course"))
 async def course_info_command(message: Message, command: CommandObject = None):
     chat_id = message.chat.id    
-    
     course_id = command.args.strip()
     
     result, error = await make_authorized_request(chat_id, "GET", f"/api/course/{course_id}/info")
@@ -198,17 +150,13 @@ async def course_info_command(message: Message, command: CommandObject = None):
         f"Информация о курсе\n\nID: {course_id}\nНазвание: {name}\nОписание: {description}\nID Преподавателя: {instructor_id}"
     )
 
-
 @router.message(Command("test"), ~F.text.contains(" "))
 async def test_no_args(message: Message):
-    await message.answer(
-        "Использование команды:\n"
-        "/course [ID теста]"
-    )
+    await message.answer("Использование: /test [ID теста]")
+
 @router.message(Command("test"))
 async def test_info_command(message: Message, command: CommandObject = None):
     chat_id = message.chat.id    
-    
     test_id = command.args.strip()
     
     result, error = await make_authorized_request(chat_id, "GET", f"/api/tests/{test_id}")
@@ -223,37 +171,3 @@ async def test_info_command(message: Message, command: CommandObject = None):
     await message.answer(
         f"Информация о тесте\n\nID: {test_id}\nНазвание: {name}\nID Курса: {course_id}\nВопросов: {question_count}"
     )
-
-@router.message(Command("questions"))
-async def questions_command(message: Message):
-    chat_id = message.chat.id
-    user_state = get_user_state(chat_id)
-    
-    if user_state['state'] != 'authorized':
-        await message.answer("Сначала авторизуйтесь: /login")
-        return
-    
-    try:
-        response = await main_api_client.make_request(
-            "GET", 
-            "/api/questions", 
-            user_state.get('access_token')
-        )
-        
-        if response.status_code == 200:
-            questions = response.json()
-            if questions and len(questions) > 0:
-                response_text = "Доступные вопросы:\n\n"
-                for i, question in enumerate(questions):
-                    name = question.get('name', 'Без названия')
-                    question_id = question.get('id', '?')
-                    version = question.get('version', 1)
-                    response_text += f"{i+1}. {name} (ID: {question_id}, версия: {version})\n\n"
-                await message.answer(response_text)
-            else:
-                await message.answer("Нет доступных вопросов.")
-        else:
-            await message.answer(f"Ошибка получения вопросов: {response.status_code}")
-            
-    except Exception as e:
-        await message.answer(f"Ошибка подключения: {e}")

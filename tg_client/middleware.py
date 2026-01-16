@@ -15,7 +15,20 @@ class AuthMiddleware(BaseMiddleware):
     ) -> Any:
         chat_id = str(event.chat.id)
         user_state = get_user_state(chat_id)
-        
+        admin_commands = [
+            '/users', '/user_info', '/set_name', '/user_roles', '/block_user',
+            '/create_course', '/update_course', '/delete_course', '/course_students',
+            '/add_to_course', '/remove_from_course', '/add_test', '/remove_test',
+            '/set_test_active', '/test_results', '/create_question', '/add_to_test'
+        ]
+        if event.text and any(event.text.startswith(cmd) for cmd in admin_commands):
+            chat_id = str(event.chat.id)
+            user_state = get_user_state(chat_id)
+            
+            if user_state['state'] != 'authorized':
+                await event.answer("Вы не авторизованы. Используйте /login")
+                return
+            
         if user_state['state'] == 'unknown':
             if not event.text.startswith('/login'):
                 await event.answer("Вы не авторизованы. Используйте /login")
@@ -30,16 +43,14 @@ class AuthMiddleware(BaseMiddleware):
                 return
             
             try:
-                decoded = jwt.decode(access_token, options={"verify_signature": False})
-                exp = decoded.get('exp', 0)
-                if datetime.now().timestamp() > exp:
-                    new_tokens = await auth_client.refresh_access_token(refresh_token)
+                access_token = user_state.get('access_token')
+                if access_token:
+                    decoded = jwt.decode(access_token, options={"verify_signature": False})
+                    roles = decoded.get('roles', [])
+                    permissions = decoded.get('permissions', [])
                     
-                    if new_tokens and 'access_token' in new_tokens:
-                        user_state['access_token'] = new_tokens['access_token']
-                        user_state['refresh_token'] = new_tokens.get('refresh_token', refresh_token)
-                    else:
-                        await event.answer("Сессия истекла. Используйте /login")
+                    if 'admin' not in roles and 'teacher' not in roles:
+                        await event.answer("Эта команда доступна только администраторам и учителям")
                         return
             except:
                 await event.answer("Ошибка авторизации.")

@@ -6,6 +6,7 @@ import jwt
 
 from utils.redis_utils import set_user_state, get_user_state, delete_user_state
 from utils.auth_client import auth_client
+from utils.token_utils import make_authorized_request
 
 router = Router()
 
@@ -103,18 +104,26 @@ async def login_command(message: Message, command: CommandObject = None):
                 try:
                     decoded = jwt.decode(access_token, options={"verify_signature": False})
                     user_id = decoded.get('user_id')
+                    id_result, id_error = await make_authorized_request(
+                        message.chat.id, "GET", "/api/user_id"
+                    )
+                    numeric_id = None
+                    if not id_error and isinstance(id_result, dict):
+                        numeric_id = id_result.get('user_id')
                 except Exception:
                     user_id = None
+                    numeric_id = None
                 
                 set_user_state(chat_id, 'authorized', {
                     'access_token': access_token,
                     'refresh_token': refresh_token,
                     'user_id': user_id,
+                    'numeric_id': numeric_id,
                     'email': email,
                     'authorized_at': datetime.now().isoformat()
                 })
                 
-                await message.answer(f"Вход выполнен!\nUser ID: {user_id if user_id else 'N/A'}")
+                await message.answer(f"Вход выполнен!\nТеперь вы можете использовать команды для авторизованных пользователей. Подробнее: /help")
                 return
             else:
                 await message.answer("Ошибка: не получены токены")
@@ -388,10 +397,8 @@ async def yandex_finish_handler(callback: CallbackQuery):
         if roles:
             response += f"Роли: {', '.join(roles)}\n"
         
-        response += "\nТеперь вы можете использовать команды:\n"
-        response += "/profile - ваш профиль\n"
-        response += "/courses - список курсов\n"
-        response += "/my_permissions - ваши права"
+        response += "\nТеперь вы можете использовать команды для авторизованных пользователей. Подробнее: /help"
+
         
         await callback.message.answer(response)
     else:
