@@ -12,7 +12,7 @@ int ResourceUsers::get_user_id(std::string auth_id) {
 //0.1. Получить уведомления пользователя
 nlohmann::json ResourceUsers::get_notifications(int user_id){
 	pqxx::work txn(conn);
-	pqxx::result res = txn.exec_params("SELECT notifications FROM users WHERE user_id = $1", user_id);
+	pqxx::result res = txn.exec_params("SELECT notifications FROM users WHERE id = $1", user_id);
 	return nlohmann::json::parse(res[0]["notifications"].as<std::string>());
 }
 
