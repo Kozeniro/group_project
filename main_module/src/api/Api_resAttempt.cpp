@@ -83,6 +83,7 @@ void Api_resAttempt::get_info(const httplib::Request& req, httplib::Response& re
     json_res["answers"] = nlohmann::json::array();
     for (const auto& ans : info.answers) {
         json_res["answers"].push_back({
+			{"id", ans.id},
             {"question_id", ans.question_id},
             {"question_version", ans.question_ver},
             {"answer_option", ans.option}

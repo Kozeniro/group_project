@@ -7,7 +7,9 @@ void Api_resUsers::get_user_id(const httplib::Request& req, httplib::Response& r
 	if (p_info.status==401) {
         res.status = p_info.status; return;
     }
-	res.set_content(std::to_string(p_info.user_id), "text/plain");
+	nlohmann::json json_response;
+	json_response["user_id"] = p_info.user_id;
+	res.set_content(json_response.dump(), "application/json");
 }
 
 void Api_resUsers::get_notifications(const httplib::Request& req, httplib::Response& res) {
