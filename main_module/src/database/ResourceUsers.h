@@ -23,6 +23,7 @@ private:
 public:
     ResourceUsers(pqxx::connection& conn);
     int get_user_id(std::string auth_id);
+	std::string get_auth_id(int user_id);
 	nlohmann::json get_notifications(int user_id);
 	void delete_notifications(int user_id);
     std::vector<UserLine> get_all();

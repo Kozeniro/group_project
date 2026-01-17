@@ -157,15 +157,14 @@ void Api_resUsers::set_roles(const httplib::Request& req, httplib::Response& res
 		{"Authorization", "Bearer " + p_info.token}
 	};
 	auto resp = cli.Post(
-		"/me/role",
+		"/users/" + resUsers.get_auth_id(user_id) + "/roles",
 		headers,
 		json_payload.dump(),
 		"application/json"
 	);
 
-    if (!resp || resp->status != 204) {
-        res.status = resp ? resp->status : 500;
-		res.body = "Auth server error";
+    if (!resp) {
+        res.status = 500;
     }
 }
 

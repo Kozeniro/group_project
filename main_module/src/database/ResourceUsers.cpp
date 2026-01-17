@@ -1,13 +1,19 @@
 #include "ResourceUsers.h"
 
 ResourceUsers::ResourceUsers(pqxx::connection& conn):conn(conn) {};
-// 0. Получить id по auth_id
+// 0.0.1 Получить id по auth_id
 int ResourceUsers::get_user_id(std::string auth_id) {
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params("SELECT id FROM users WHERE auth_id = $1", auth_id);
 	if (res.empty()) res = txn.exec_params("INSERT INTO users (auth_id) VALUES ($1) RETURNING id",auth_id);
     txn.commit();
 	return res[0][0].as<int>();
+}
+// 0.0.2 Получить auth_id по id
+std::string ResourceUsers::get_auth_id(int user_id) {
+    pqxx::work txn(conn);
+    pqxx::result res = txn.exec_params("SELECT auth_id FROM users WHERE id = $1", user_id);
+	return res[0][0].as<std::string>();
 }
 //0.1. Получить уведомления пользователя
 nlohmann::json ResourceUsers::get_notifications(int user_id){
