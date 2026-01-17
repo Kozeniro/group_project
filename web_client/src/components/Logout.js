@@ -1,32 +1,27 @@
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
-const Logout = ({ all, setUserStatus }) => {
+const Logout = ({ setUserStatus }) => {
     const navigate = useNavigate();
 
-    useEffect(() => {
-        const sessionToken = document.cookie
-            .split('; ')
-            .find((row) => row.startsWith('session_token='))
-            ?.split('=')[1];
-
-        if (sessionToken) {
-            axios
-                .post('/api/logout', { all }, { headers: { Authorization: `Bearer ${sessionToken}` } })
-                .then(() => {
-                    document.cookie = 'session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-                    setUserStatus('unknown');
-                    navigate('/');
-                })
-                .catch(() => {
-                    navigate('/error');
-                });
-        } else {
-            setUserStatus('unknown');
-            navigate('/');
+    const handleLogout = async () => {
+        try {
+            // Запрос на выход
+            await axios.post('/api/logout', {}, { withCredentials: true });
+            setUserStatus('unknown'); // Обновляем статус пользователя на 'unknown'
+            navigate('/'); 
+        } catch (error) {
+            console.error('Ошибка выхода:', error);
         }
-    }, [all, setUserStatus, navigate]);
+    };
+
+    // Вызов функции handleLogout сразу при загрузке компонента
+    useEffect(() => {
+        handleLogout();
+    }, []);
 
     return <div>Выход из системы...</div>;
 };
+
+export default Logout;
