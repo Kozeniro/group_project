@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Dict, List
 from aiogram import Bot
 
-from utils.redis_utils import get_all_anonymous_users, get_all_authorized_users, delete_user_state, update_user_tokens, get_user_state
+from utils.redis_utils import get_all_anonymous_users, get_all_authorized_users, delete_user_state, update_user_tokens, get_user_state, set_user_state
 from utils.auth_client import auth_client
 from utils.main_api_client import main_api_client
 from utils.token_utils import refresh_tokens
@@ -101,6 +101,8 @@ class PeriodicTasks:
         if not authorized_users:
             return
         
+        notifications_found = 0
+        
         for chat_id in authorized_users:
             try:
                 user_state = get_user_state(chat_id)
@@ -111,28 +113,65 @@ class PeriodicTasks:
                 if not access_token:
                     continue
                 
+
                 try:
                     notifications = await main_api_client.get_notifications(access_token)
                     
                     if notifications and isinstance(notifications, list):
                         for notification in notifications:
                             try:
+                                
                                 await self.bot.send_message(
                                     chat_id=chat_id,
                                     text=f"Уведомление: {notification}"
                                 )
+                                notifications_found += 1
                             except Exception as e:
-                                logger.error(f"Failed to send notification: {e}")
+                                logger.error(f"Failed to send notification to {chat_id}: {e}")
                         
-                        await main_api_client.delete_notifications(access_token)
-                            
+                        
+                        if notifications:
+                            await main_api_client.delete_notifications(access_token)
+                                
                 except Exception as e:
                     if "401" in str(e):
-                        refreshed = await refresh_tokens(chat_id)
+                        
+                        refreshed = await self._refresh_user_tokens(chat_id)
                         if not refreshed:
                             logger.warning(f"Failed to refresh tokens for {chat_id}")
                     else:
-                        logger.error(f"Error getting notifications: {e}")
+                        logger.error(f"Error getting notifications for {chat_id}: {e}")
                 
             except Exception as e:
                 logger.error(f"Error processing notifications for {chat_id}: {e}")
+        
+        if notifications_found > 0:
+            logger.info(f"Sent {notifications_found} notifications")
+
+    async def _refresh_user_tokens(self, chat_id: str) -> bool:
+        user_state = get_user_state(chat_id)
+        
+        if user_state['state'] != 'authorized':
+            return False
+        
+        refresh_token = user_state.get('refresh_token')
+        if not refresh_token:
+            return False
+        
+        try:
+            new_tokens = await auth_client.refresh_access_token(refresh_token)
+            
+            if new_tokens and 'access_token' in new_tokens:
+                
+                user_state['access_token'] = new_tokens['access_token']
+                user_state['refresh_token'] = new_tokens.get('refresh_token', refresh_token)
+                set_user_state(chat_id, 'authorized', user_state)
+                return True
+            else:
+                
+                delete_user_state(chat_id)
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error refreshing tokens for {chat_id}: {e}")
+            return False

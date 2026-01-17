@@ -13,7 +13,7 @@ class MainAPIClient:
     
     async def make_request(self, method: str, endpoint: str, access_token: str, **kwargs):
         client = await self._get_client()
-        headers = {"Authorization": f"Bearer {access_token}"}
+        headers = {"Authorization": f"Bearer {access_token[:20]}..."}
         
         print(f"DEBUG main_api: Making {method} request to {endpoint}")
         print(f"DEBUG main_api: Headers: {headers}")

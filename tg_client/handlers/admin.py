@@ -260,7 +260,7 @@ async def block_user_command(message: Message, command: CommandObject = None):
         await message.answer(f"Пользователь {user_id} {status}")
 
 @router.message(Command("create_course"))
-async def create_course_command(message: Message, command: CommandObject = None):
+async def create_course_command(message: Message, command: CommandObject = None):    
     chat_id = message.chat.id
     user_state = get_user_state(chat_id)
     
@@ -270,44 +270,78 @@ async def create_course_command(message: Message, command: CommandObject = None)
     
     if not command or not command.args:
         await message.answer(
-            "Использование: /create_course [название] [описание] [instructor_id]\n\n"
-            "Пример: /create_course \"Python\" \"Основы Python\" 1\n\n"
+            "Создание курса\n\n"
+            "Использование:\n"
+            '/create_course "Название курса" "Описание курса" instructor_id'
         )
         return
     
-    args = command.args.strip()
+    args = command.args.strip()    
     
     try:
-        course_data = json.loads(args)
+        import json
+        course_data = json.loads(args)       
         
-        if not all(key in course_data for key in ['name', 'description', 'instructor_id']):
-            await message.answer("В JSON должны быть поля: name, description, instructor_id")
+        required_fields = ['name', 'description', 'instructor_id']
+        missing_fields = [f for f in required_fields if f not in course_data]
+        
+        if missing_fields:
+            await message.answer(f"В JSON отсутствуют поля: {', '.join(missing_fields)}")
+            return            
+        
+        try:
+            instructor_id = int(course_data['instructor_id'])
+        except ValueError:
+            await message.answer("instructor_id должен быть числом")
             return
-            
+        
     except json.JSONDecodeError:
-        args_list = args.split(maxsplit=2)
-        if len(args_list) != 3:
-            await message.answer(
-                "Неверный формат. Используйте:\n"
-                "/create_course [название] [описание] [instructor_id]\n\n"
-            )
-            return
         
-        name, description, instructor_id = args_list
-        
-        instructor_id_int = int(instructor_id)
-       
+        import shlex
+        try:            
+            parsed_args = shlex.split(args)
             
-        course_data = {
-            "name": name.strip('"\' '),
-            "description": description.strip('"\' '),
-            "instructor_id": instructor_id_int
-        }
+            if len(parsed_args) < 3:
+                await message.answer(
+                    "Недостаточно аргументов. Нужно 3 аргумента:\n"
+                    '1. "Название курса"\n'
+                    '2. "Описание курса"\n'
+                    '3. instructor_id (число)\n\n'
+                    'Пример:\n'
+                    '/create_course "Python" "Курс по программированию" 1'
+                )
+                return            
+            
+            try:
+                instructor_id = int(parsed_args[-1])
+            except ValueError:
+                await message.answer(f"instructor_id должен быть числом, получено: {parsed_args[-1]}")
+                return
+            
+            
+            if len(parsed_args) == 3:
+                
+                name, description, _ = parsed_args
+            else:
+                
+                name = parsed_args[0]
+                description = ' '.join(parsed_args[1:-1])
+            
+            course_data = {
+                "name": name.strip('"\' '),
+                "description": description.strip('"\' '),
+                "instructor_id": instructor_id
+            }
+            
+        except ValueError as e:
+            await message.answer(f"Ошибка парсинга аргументов: {e}\n\n"
+                               "Используйте кавычки для названия и описания!")
+            return    
     
     if not check_permission(user_state, 'course:add'):
         await message.answer("Недостаточно прав для создания курса")
         return
-    
+        
     result, error = await make_authorized_request(
         chat_id, "POST", "/api/course",
         data=course_data
@@ -316,9 +350,12 @@ async def create_course_command(message: Message, command: CommandObject = None)
     if error:
         await message.answer(f"Ошибка создания курса: {error}")
     else:
-        course_id = result.get('course_id') if result else 'неизвестен'
-        await message.answer(f"Курс создан! ID: {course_id}")
-
+        course_id = result.get('course_id') if isinstance(result, dict) else result
+        await message.answer(
+            "Курс создан!\n"
+            f"ID курса: {course_id}\n"
+            f"Посмотреть курс: /course {course_id}"
+        )
 @router.message(Command("update_course"))
 async def update_course_command(message: Message, command: CommandObject = None):
     chat_id = message.chat.id
@@ -706,8 +743,7 @@ async def test_results_command(message: Message, command: CommandObject = None):
     await message.answer(response)
 
 @router.message(Command("questions"))
-async def list_questions_command(message: Message, command: CommandObject = None):
-    """Просмотр списка вопросов"""
+async def list_questions_command(message: Message, command: CommandObject = None):    
     chat_id = message.chat.id
     user_state = get_user_state(chat_id)
     
