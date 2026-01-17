@@ -49,7 +49,7 @@ void register_routes(httplib::Server& svr,
 	svr.Delete(R"(/api/course/(\d+)/tests/(\d+))", [&](const httplib::Request& req, httplib::Response& res) {api_course.remove_test(req, res);});
 	svr.Get(R"(/api/course/(\d+)/students)", [&](const httplib::Request& req, httplib::Response& res) {api_course.get_students(req, res);});
 	svr.Post(R"(/api/course/(\d+)/students)", [&](const httplib::Request& req, httplib::Response& res) {api_course.add_user(req, res);});
-	svr.Delete(R"(/api/course/(\d+)/students/(\d+))", [&](const httplib::Request& req, httplib::Response& res) {api_course.remove_user(req, res);});
+	svr.Delete(R"(/api/course/(\d+)/students)", [&](const httplib::Request& req, httplib::Response& res) {api_course.remove_user(req, res);});
 	svr.Post(R"(/api/course)", [&](const httplib::Request& req, httplib::Response& res) {api_course.create_course(req, res);});
 	svr.Delete(R"(/api/course/(\d+))", [&](const httplib::Request& req, httplib::Response& res) {api_course.delete_course(req, res);});
 	//Resource QUESTIONS
