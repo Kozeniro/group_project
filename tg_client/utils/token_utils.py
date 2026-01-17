@@ -54,28 +54,22 @@ async def make_authorized_request(chat_id: str, method: str, endpoint: str, **kw
     try:
         response = await _make_request(method, f"{base_url}{endpoint}", access_token, **kwargs)
         
-        # Обрабатываем разные статусы
         if response.status_code == 200:
-            # 200 OK
             if not response.text or response.text.strip() == '':
-                # Пустой ответ при успехе
                 return {"success": True}, None
             
             try:
                 return response.json(), None
             except:
-                # Не JSON, возвращаем текст
                 return response.text, None
                 
         elif response.status_code == 201:
-            # 201 Created
             try:
                 return response.json(), None
             except:
                 return {"success": True, "message": response.text}, None
                 
         elif response.status_code == 204:
-            # 204 No Content
             return {"success": True}, None
             
         elif response.status_code == 400:
@@ -83,7 +77,6 @@ async def make_authorized_request(chat_id: str, method: str, endpoint: str, **kw
             return None, f"Неверный запрос: {error_text}"
             
         elif response.status_code == 401:
-            # Пробуем обновить токен
             refreshed = await refresh_tokens(chat_id)
             if refreshed:
                 user_state = get_user_state(chat_id)

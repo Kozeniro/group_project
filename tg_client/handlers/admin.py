@@ -124,28 +124,55 @@ async def set_user_name_command(message: Message, command: CommandObject = None)
     chat_id = message.chat.id
     user_state = get_user_state(chat_id)
     
+    if user_state['state'] != 'authorized':
+        await message.answer("Сначала авторизуйтесь: /login")
+        return
+    
     if not command or not command.args:
-        await message.answer("Использование: /set_name [user_id] [новое_имя]")
+        await message.answer("Использование:\n"
+                           "/set_name [новое_имя] - сменить своё имя\n"
+                           "/set_name [user_id] [новое_имя] - сменить имя другого пользователя")
         return
     
     args = command.args.strip().split(maxsplit=1)
-    if len(args) != 2:
-        await message.answer("Использование: /set_name [user_id] [новое_имя]")
-        return
     
-    user_id, new_name = args[0], args[1]
+    if len(args) == 1:
+        new_name = args[0]
+        id_result, id_error = await make_authorized_request(chat_id, "GET", "/api/user_id")
+        
+        if id_error:
+            await message.answer(f"Не удалось получить ваш ID: {id_error}")
+            return
+        
+        numeric_id = id_result.get('user_id') if isinstance(id_result, dict) else str(id_result)
+        
+        result, error = await make_authorized_request(
+            chat_id, "PUT", f"/api/users/{numeric_id}/name",
+            data={"new_name": new_name}
+        )
+        
+        if error:
+            await message.answer(f"Ошибка: {error}")
+        else:
+            await message.answer(f"Ваше имя изменено на '{new_name}'")
     
-    if not check_permission(user_state, 'user:fullName:write'):
-        await message.answer("Недостаточно прав")
-        return
-    
-    result, error = await make_authorized_request(chat_id, "PUT", f"/api/users/{user_id}/name",
-                                                 data={"new_name": new_name})
-    
-    if error:
-        await message.answer(f"Ошибка: {error}")
-    else:
-        await message.answer(f"Имя пользователя {user_id} изменено")
+    elif len(args) == 2:
+        target_user_id, new_name = args[0], args[1]
+        
+        if not check_permission(user_state, 'user:fullName:write'):
+            await message.answer("Недостаточно прав для изменения имени другого пользователя")
+            return
+        
+        id_result, id_error = await make_authorized_request(chat_id, "GET", "/api/user_id")
+        result, error = await make_authorized_request(
+            chat_id, "PUT", f"/api/users/{target_user_id}/name",
+            data={"new_name": new_name}
+        )
+        
+        if error:
+            await message.answer(f"Ошибка: {error}")
+        else:
+            await message.answer(f"Имя пользователя {target_user_id} изменено на '{new_name}'")
 
 @router.message(Command("user_roles"))
 async def user_roles_command(message: Message, command: CommandObject = None):

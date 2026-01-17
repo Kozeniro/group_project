@@ -280,8 +280,11 @@ async def leave_course_command(message: Message, command: CommandObject = None):
     else:
         await message.answer(f"Вы отчислены с курса {course_id}")
 
+
+
+
 @router.message(Command("name"))
-async def name_command(message: Message, command: CommandObject = None):
+async def get_name_command(message: Message, command: CommandObject = None):
     chat_id = message.chat.id
     user_state = get_user_state(chat_id)
     
@@ -290,35 +293,42 @@ async def name_command(message: Message, command: CommandObject = None):
         return
     
     if not command or not command.args:
-        await message.answer("Использование: /name [новое_имя]")
-        return
-    
-    new_name = command.args.strip()
-    
-    id_result, id_error = await make_authorized_request(chat_id, "GET", "/api/user_id")
-    
-    if id_error:
         user_id = user_state.get('user_id')
         if not user_id:
-            await message.answer(f"Не удалось получить ваш ID. Ошибка: {id_error}")
+            await message.answer("Не удалось получить ваш ID")
             return
-    else:
-        if isinstance(id_result, dict):
-            user_id = id_result.get('user_id')
+        
+        result, error = await make_authorized_request(
+            chat_id, "GET", f"/api/users/{user_id}/name"
+        )
+        
+        if error:
+            if "404" in error:
+                await message.answer("Ваше имя не установлено. Используйте /set_name [имя]")
+            else:
+                await message.answer(f"Ошибка: {error}")
         else:
-            user_id = str(id_result) if id_result else None
-    
-    if not user_id:
-        await message.answer("Не удалось получить ваш ID")
+            name = result.get('name') if isinstance(result, dict) else str(result)
+            await message.answer(f"Ваше имя: {name}")
         return
     
-    result, error = await make_authorized_request(chat_id, "PUT", f"/api/users/{user_id}/name",
-                                                 data={"new_name": new_name})
+    target_user_id = command.args.strip()
+    
+    result, error = await make_authorized_request(
+        chat_id, "GET", f"/api/users/{target_user_id}/name"
+    )
     
     if error:
-        await message.answer(f"Ошибка: {error}")
+        if "404" in error:
+            await message.answer(f"Пользователь {target_user_id} не найден или имя не установлено")
+        elif "403" in error:
+            await message.answer(f"Нет прав для просмотра имени пользователя {target_user_id}")
+        else:
+            await message.answer(f"Ошибка: {error}")
     else:
-        await message.answer(f"Ваше имя изменено на '{new_name}'")
+        name = result.get('name') if isinstance(result, dict) else str(result)
+        await message.answer(f"Имя пользователя {target_user_id}: {name}")
+
 
 @router.message(Command("check_blocked"))
 async def check_blocked_command(message: Message, command: CommandObject = None):
