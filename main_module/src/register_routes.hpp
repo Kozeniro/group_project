@@ -43,8 +43,8 @@ void register_routes(httplib::Server& svr,
 	svr.Get(R"(/api/course/(\d+)/info)", [&](const httplib::Request& req, httplib::Response& res) {api_course.get_info(req, res);});
 	svr.Put(R"(/api/course/(\d+)/info)", [&](const httplib::Request& req, httplib::Response& res) {api_course.update_info(req, res);});
 	svr.Get(R"(/api/course/(\d+)/tests)", [&](const httplib::Request& req, httplib::Response& res) {api_course.get_tests(req, res);});
-	svr.Get(R"(/api/course/(\d+)/tests/(\d+)/activity)", [&](const httplib::Request& req, httplib::Response& res) {api_course.is_test_active(req, res);});
-	svr.Post(R"(/api/course/(\d+)/tests/(\d+)/activity)", [&](const httplib::Request& req, httplib::Response& res) {api_course.set_test_active(req, res);});
+	svr.Get(R"(/api/course/(\d+)/tests/(\d+)/active)", [&](const httplib::Request& req, httplib::Response& res) {api_course.is_test_active(req, res);});
+	svr.Post(R"(/api/course/(\d+)/tests/(\d+)/active)", [&](const httplib::Request& req, httplib::Response& res) {api_course.set_test_active(req, res);});
 	svr.Post(R"(/api/course/(\d+)/tests)", [&](const httplib::Request& req, httplib::Response& res) {api_course.add_test(req, res);});
 	svr.Delete(R"(/api/course/(\d+)/tests/(\d+))", [&](const httplib::Request& req, httplib::Response& res) {api_course.remove_test(req, res);});
 	svr.Get(R"(/api/course/(\d+)/students)", [&](const httplib::Request& req, httplib::Response& res) {api_course.get_students(req, res);});
