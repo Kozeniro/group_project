@@ -189,35 +189,75 @@ async def user_roles_command(message: Message, command: CommandObject = None):
         user_id = args[0]
         
         if not check_permission(user_state, 'user:roles:read'):
-            await message.answer("Недостаточно прав")
+            await message.answer("Недостаточно прав для просмотра ролей")
             return
         
-        result, error = await make_authorized_request(chat_id, "GET", f"/api/users/{user_id}/roles")
+        result, error = await make_authorized_request(
+            chat_id, "GET", f"/api/users/{user_id}/roles"
+        )
         
         if error:
             await message.answer(f"Ошибка: {error}")
-        else:
-            roles = result if isinstance(result, list) else []
-            await message.answer(f"Роли пользователя {user_id}:\n{', '.join(roles) if roles else 'нет ролей'}")
+        else:            
+            print(f"[DEBUG] user_roles result: {result}")
+            roles = []
+            if isinstance(result, dict):
+                
+                if 'roles' in result:
+                    roles = result['roles']
+                elif 'role' in result:
+                    roles = [result['role']]
+                elif result:
+                    
+                    roles = list(result.values())
+            elif isinstance(result, list):
+                roles = result
+            elif result:
+                roles = [str(result)]
+            
+            await message.answer(
+                f"Роли пользователя {user_id}:\n" + 
+                (', '.join([str(r) for r in roles]) if roles else 'нет ролей')
+            )
     
     elif len(args) >= 3 and args[1] == 'set':
         user_id = args[0]
         roles_str = ' '.join(args[2:])
         
         try:
-            roles = json.loads(roles_str)
-        except:
+            if roles_str.startswith('[') and roles_str.endswith(']'):
+                roles = json.loads(roles_str)
+            elif ',' in roles_str:
+                roles = [role.strip() for role in roles_str.split(',')]
+            else:
+                roles = [roles_str.strip()]
+        except json.JSONDecodeError:
             roles = [role.strip() for role in roles_str.split(',')]
-        
-        if not check_permission(user_state, 'user:roles:write'):
-            await message.answer("Недостаточно прав")
+        except Exception as e:
+            await message.answer(f"Ошибка парсинга ролей: {e}")
             return
         
-        result, error = await make_authorized_request(chat_id, "POST", f"/api/users/{user_id}/roles",
-                                                     data={"roles": roles})
+        if not check_permission(user_state, 'user:roles:write'):
+            await message.answer("Недостаточно прав для изменения ролей")
+            return
+        
+        result, error = await make_authorized_request(
+            chat_id, "POST", f"/api/users/{user_id}/roles",
+            data={"roles": roles}
+        )
         
         if error:
-            await message.answer(f"Ошибка: {error}")
+            error_msg = str(error)
+            if "Auth server error" in error_msg or "500" in error_msg:
+                await message.answer(
+                    "Ошибка сервера авторизации.\n\n"
+                    "Возможные причины:\n"
+                    "1. Неверный формат ролей (должны быть: ['student', 'teacher', 'admin'])\n"
+                    "2. Попытка удалить все роли у пользователя\n"
+                    "3. Проблема на сервере авторизации"
+                )
+            else:
+                await message.answer(f"Ошибка: {error}")
         else:
             await message.answer(f"Роли пользователя {user_id} обновлены")
     
@@ -441,7 +481,9 @@ async def course_students_command(message: Message, command: CommandObject = Non
 async def add_to_course_command(message: Message, command: CommandObject = None):
     chat_id = message.chat.id
     user_state = get_user_state(chat_id)
-    
+    if user_state['state'] != 'authorized':
+        await message.answer("Сначала авторизуйтесь: /login")
+        return
     if not command or not command.args:
         await message.answer("Использование: /add_to_course [course_id] [user_id]")
         return
@@ -451,25 +493,73 @@ async def add_to_course_command(message: Message, command: CommandObject = None)
         await message.answer("Использование: /add_to_course [course_id] [user_id]")
         return
     
-    course_id, user_id = args[0], args[1]
+    course_id, target_user_id = args[0], args[1]    
     
-    if not check_permission(user_state, 'course:user:add'):
-        await message.answer("Недостаточно прав")
+    id_result, id_error = await make_authorized_request(chat_id, "GET", "/api/user_id")
+    
+    if id_error:
+        await message.answer(f"Не удалось получить ваш ID: {id_error}")
+        return    
+    
+    if isinstance(id_result, dict):
+        numeric_id = id_result.get('user_id')
+    else:
+        numeric_id = str(id_result) if id_result else None
+    
+    if not numeric_id:
+        await message.answer("Не удалось получить ваш numeric_id")
         return
     
-    result, error = await make_authorized_request(chat_id, "POST", f"/api/course/{course_id}/students",
-                                                 data={"user_id": user_id})
+    
+    if str(target_user_id) != str(numeric_id):
+        if not check_permission(user_state, 'course:user:add'):
+            await message.answer("Недостаточно прав для добавления других пользователей на курс")
+            return
+    course_info, course_error = await make_authorized_request(
+        chat_id, "GET", f"/api/course/{course_id}/info"
+    )
+    course_name = course_info.get('name', 'Без названия')
+    instructor_id = course_info.get('instructor_id')
+    if instructor_id and str(instructor_id) == str(numeric_id):
+        await message.answer("Вы преподаватель курса.")
+        return
+    if course_error:
+        await message.answer(f"Курс {course_id} не найден: {course_error}")
+        return
+    students_result, students_error = await make_authorized_request(
+        chat_id, "GET", f"/api/course/{course_id}/students"
+    )
+    
+    if not students_error and isinstance(students_result, list):
+        if str(numeric_id) in [str(sid) for sid in students_result]:
+            await message.answer(f"Вы уже записаны на курс '{course_name}'")
+            return
+    result, error = await make_authorized_request(
+        chat_id, "POST", f"/api/course/{course_id}/students",
+        data={"user_id": int(target_user_id)}
+    )
     
     if error:
-        await message.answer(f"Ошибка: {error}")
+        if "500" in error:
+            await message.answer(
+                "Ошибка сервера при добавлении на курс.\n\n"
+                "Возможные причины:\n"
+                "1. Курс не существует\n"
+                "2. Пользователь уже записан на курс\n"
+                "3. Проблема на сервере"
+            )
+        else:
+            await message.answer(f"Ошибка: {error}")
     else:
-        await message.answer(f"Пользователь {user_id} добавлен на курс {course_id}")
+        await message.answer(f"Пользователь {target_user_id} добавлен на курс {course_id}")
 
 @router.message(Command("remove_from_course"))
 async def remove_from_course_command(message: Message, command: CommandObject = None):
     chat_id = message.chat.id
     user_state = get_user_state(chat_id)
-    
+    if user_state['state'] != 'authorized':
+        await message.answer("Сначала авторизуйтесь: /login")
+        return
     if not command or not command.args:
         await message.answer("Использование: /remove_from_course [course_id] [user_id]")
         return
@@ -479,19 +569,46 @@ async def remove_from_course_command(message: Message, command: CommandObject = 
         await message.answer("Использование: /remove_from_course [course_id] [user_id]")
         return
     
-    course_id, user_id = args[0], args[1]
+    course_id, target_user_id = args[0], args[1]    
     
-    if not check_permission(user_state, 'course:user:del'):
-        await message.answer("Недостаточно прав")
+    id_result, id_error = await make_authorized_request(chat_id, "GET", "/api/user_id")
+    
+    if id_error:
+        await message.answer(f"Не удалось получить ваш ID: {id_error}")
+        return    
+    
+    if isinstance(id_result, dict):
+        numeric_id = id_result.get('user_id')
+    else:
+        numeric_id = str(id_result) if id_result else None
+    
+    if not numeric_id:
+        await message.answer("Не удалось получить ваш numeric_id")
         return
     
-    result, error = await make_authorized_request(chat_id, "DELETE", f"/api/course/{course_id}/students",
-                                                 data={"user_id": user_id})
+    if str(target_user_id) != str(numeric_id):
+        if not check_permission(user_state, 'course:user:del'):
+            await message.answer("Недостаточно прав для удаления других пользователей с курса")
+            return
+    
+    result, error = await make_authorized_request(
+        chat_id, "DELETE", f"/api/course/{course_id}/students",
+        data={"user_id": int(target_user_id)}
+    )
     
     if error:
-        await message.answer(f"Ошибка: {error}")
+        if "500" in error:
+            await message.answer(
+                "Ошибка сервера при удалении с курса.\n\n"
+                "Возможные причины:\n"
+                "1. Курс не существует\n"
+                "2. Пользователь не записан на курс\n"
+                "3. Проблема на сервере"
+            )
+        else:
+            await message.answer(f"Ошибка: {error}")
     else:
-        await message.answer(f"Пользователь {user_id} удален с курса {course_id}")
+        await message.answer(f"Пользователь {target_user_id} удален с курса {course_id}")
 
 @router.message(Command("add_test"))
 async def add_test_command(message: Message, command: CommandObject = None):
@@ -601,6 +718,36 @@ async def view_tests_command(message: Message, command: CommandObject = None):
     
     await message.answer(response)
 
+@router.message(Command("test_active"))
+async def test_active_command(message: Message, command: CommandObject = None):
+    chat_id = message.chat.id
+    user_state = get_user_state(chat_id)
+    
+    if not command or not command.args:
+        await message.answer("Использование: /test_active [course_id] [test_id]")
+        return
+    
+    args = command.args.strip().split()
+    if len(args) != 2:
+        await message.answer("Использование: /test_active [course_id] [test_id]")
+        return
+    
+    course_id, test_id = args[0], args[1]
+    
+    if not check_permission(user_state, 'course:test:write'):
+        await message.answer("Недостаточно прав для активации теста")
+        return
+
+    result, error = await make_authorized_request(
+        chat_id, "GET", f"/api/course/{course_id}/tests/{test_id}/active"
+    )
+    
+    if error:
+        await message.answer(f"Ошибка: {error}")
+    else:
+        active = result.get('active', False) if isinstance(result, dict) else result
+        status = "активен" if active else "не активен"
+        await message.answer(f"Тест {test_id} в курсе {course_id}: {status}")
 
 @router.message(Command("remove_test"))
 async def remove_test_command(message: Message, command: CommandObject = None):
@@ -943,6 +1090,48 @@ async def create_question_command(message: Message, command: CommandObject = Non
             "Использование: /create_question [JSON с данными вопроса]\n"
             'Пример: /create_question {"name": "Вопрос 1", "text": "2+2=?", "options": ["3", "4", "5"], "correct_option": 1}'
 )
+
+@router.message(Command("update_question"))
+async def update_question_command(message: Message, command: CommandObject = None):
+    chat_id = message.chat.id
+    user_state = get_user_state(chat_id)
+    
+    if not command or not command.args:
+        await message.answer(
+            "Использование: /update_question [question_id] [JSON]\n\n"
+            'Пример: /update_question 1 {"name": "Новое название", "text": "Новый текст", "options": ["a", "b", "c"], "correct_option": 0}'
+        )
+        return
+    
+    try:
+        import json
+        args = command.args.strip().split(maxsplit=1)
+        if len(args) != 2:
+            await message.answer("Необходимо указать ID вопроса и JSON данные")
+            return
+        
+        question_id, json_str = args[0], args[1]
+        question_data = json.loads(json_str)
+        
+        if not check_permission(user_state, 'quest:update'):
+            await message.answer("Недостаточно прав для обновления вопроса")
+            return
+        
+        result, error = await make_authorized_request(
+            chat_id, "PUT", f"/api/questions/{question_id}",
+            data=question_data
+        )
+        
+        if error:
+            await message.answer(f"Ошибка: {error}")
+        else:
+            new_version = result.get('version') if isinstance(result, dict) else 'новая версия'
+            await message.answer(f"Вопрос {question_id} обновлен. Версия: {new_version}")
+            
+    except json.JSONDecodeError:
+        await message.answer("Ошибка в формате JSON")
+    except Exception as e:
+        await message.answer(f"Ошибка: {e}")
 
 @router.message(Command("add_to_test"))
 async def add_to_test_command(message: Message, command: CommandObject = None):

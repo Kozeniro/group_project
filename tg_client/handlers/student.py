@@ -34,19 +34,40 @@ async def start_test_command(message: Message, command: CommandObject = None, st
         return
     
     test_id = command.args.strip()
-    user_id = user_state.get('user_id')
+    id_result, id_error = await make_authorized_request(chat_id, "GET", "/api/user_id")
     
-    if not user_id:
-        await message.answer("Не удалось получить ваш ID")
+    if id_error:
+        await message.answer(f"Не удалось получить ваш ID: {id_error}")
+        return    
+    
+    if isinstance(id_result, dict):
+        numeric_id = id_result.get('user_id')
+    else:
+        numeric_id = str(id_result) if id_result else None
+    
+    if not numeric_id:
+        await message.answer("Не удалось получить ваш numeric_id")
         return
-    
+
     await message.answer(f"Начинаем тест {test_id}...")
     
-    result, error = await make_authorized_request(chat_id, "POST", "/api/attempt",
-                                                 data={"user_id": user_id, "test_id": test_id})
+    result, error = await make_authorized_request(
+        chat_id, "POST", "/api/attempt",
+        data={"user_id": numeric_id, "test_id": test_id}
+    )
     
     if error:
-        await message.answer(f"Ошибка начала теста: {error}")
+        if "500" in error:
+            await message.answer(
+                "Ошибка начала теста.\n\n"
+                "Возможные причины:\n"
+                "1. Тест не существует\n"
+                "2. Тест не активен\n"
+                "3. У вас уже есть активная попытка\n"
+                "4. Вы не записаны на курс с этим тестом"
+            )
+        else:
+            await message.answer(f"Ошибка начала теста: {error}")
         return
     
     attempt_id = result.get('attempt_id')
@@ -54,9 +75,17 @@ async def start_test_command(message: Message, command: CommandObject = None, st
         await message.answer("Не удалось создать попытку")
         return
     
-    test_info, error = await make_authorized_request(chat_id, "GET", f"/api/tests/{test_id}")
-    if error:
-        await message.answer(f"Ошибка получения информации о тесте: {error}")
+    test_info = None
+    endpoints = [f"/api/tests/{test_id}", f"/api/test/{test_id}"]
+    
+    for endpoint in endpoints:
+        test_result, test_error = await make_authorized_request(chat_id, "GET", endpoint)
+        if not test_error:
+            test_info = test_result
+            break
+    
+    if not test_info:
+        await message.answer("Не удалось получить информацию о тесте")
         return
     
     questions = test_info.get('questions', [])
@@ -67,7 +96,7 @@ async def start_test_command(message: Message, command: CommandObject = None, st
     session_data = {
         'test_id': test_id,
         'attempt_id': attempt_id,
-        'user_id': user_id,
+        'user_id': numeric_id,
         'current_question': 0,
         'questions': questions,
         'answers': {}
@@ -306,8 +335,6 @@ async def join_course_command(message: Message, command: CommandObject = None):
         await message.answer(f"Вы успешно записаны на курс '{course_name}'!")
 
 
-
-
 @router.message(Command("leave_course"))
 async def leave_course_command(message: Message, command: CommandObject = None):
     chat_id = message.chat.id
@@ -416,19 +443,66 @@ async def check_blocked_command(message: Message, command: CommandObject = None)
         await message.answer("Сначала авторизуйтесь: /login")
         return
     
-    user_id = user_state.get('user_id')
     
-    result, error = await make_authorized_request(chat_id, "GET", f"/api/users/{user_id}/blocked")
+    if not command or not command.args:
+        
+        id_result, id_error = await make_authorized_request(chat_id, "GET", "/api/user_id")
+        
+        if id_error:
+            await message.answer(f"Не удалось получить ваш ID: {id_error}")
+            return    
+        
+        if isinstance(id_result, dict):
+            numeric_id = id_result.get('user_id')
+        else:
+            numeric_id = str(id_result) if id_result else None
+        
+        if not numeric_id:
+            await message.answer("Не удалось получить ваш numeric_id")
+            return
+        
+        target_id = str(numeric_id)
+        check_self = True
+    else:
+        
+        target_id = command.args.strip()
+        check_self = str(target_id) == str(user_state.get('user_id', ''))
+    
+    
+    if not check_self:
+        
+        access_token = user_state.get('access_token')
+        if access_token:
+            try:
+                import jwt
+                decoded = jwt.decode(access_token, options={"verify_signature": False})
+                permissions = decoded.get('permissions', [])
+                
+                if 'user:block:read' not in permissions:
+                    
+                    roles = decoded.get('roles', [])
+                    if 'admin' not in roles and 'teacher' not in roles:
+                        await message.answer("Недостаточно прав для просмотра блокировки других пользователей")
+                        return
+            except Exception:
+                pass
+    
+    result, error = await make_authorized_request(
+        chat_id, "GET", f"/api/users/{target_id}/blocked"
+    )
     
     if error:
         if "404" in str(error):
-            await message.answer("Информация о блокировке не найдена")
+            await message.answer(f"Информация о блокировке пользователя {target_id} не найдена")
+        elif "403" in str(error):
+            await message.answer(f"Нет прав для просмотра блокировки пользователя {target_id}")
         else:
             await message.answer(f"Ошибка: {error}")
     else:
-        blocked = result.get('blocked', False) if result else False
+        blocked = result.get('blocked', False) if isinstance(result, dict) else result
         status = "заблокирован" if blocked else "не заблокирован"
-        await message.answer(f"Ваш статус: {status}")
+        pronoun = "Ваш статус" if check_self else f"Статус пользователя {target_id}"
+        await message.answer(f"{pronoun}: {status}")
 
 @router.message(Command("student_help"))
 async def user_help_command(message: Message):
