@@ -3,6 +3,7 @@ from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 import asyncio
 import logging
+from middleware import AuthMiddleware
 
 from utils.config import Config
 from handlers import routers
@@ -16,9 +17,9 @@ bot = Bot(
     default=DefaultBotProperties(parse_mode=ParseMode.HTML)
 )
 dp = Dispatcher()
-
 for router in routers:
     dp.include_router(router)
+dp.message.middleware(AuthMiddleware())
 
 async def main():
     periodic_tasks = PeriodicTasks(bot)

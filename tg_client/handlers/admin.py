@@ -718,37 +718,6 @@ async def view_tests_command(message: Message, command: CommandObject = None):
     
     await message.answer(response)
 
-@router.message(Command("test_active"))
-async def test_active_command(message: Message, command: CommandObject = None):
-    chat_id = message.chat.id
-    user_state = get_user_state(chat_id)
-    
-    if not command or not command.args:
-        await message.answer("Использование: /test_active [course_id] [test_id]")
-        return
-    
-    args = command.args.strip().split()
-    if len(args) != 2:
-        await message.answer("Использование: /test_active [course_id] [test_id]")
-        return
-    
-    course_id, test_id = args[0], args[1]
-    
-    if not check_permission(user_state, 'course:test:write'):
-        await message.answer("Недостаточно прав для активации теста")
-        return
-
-    result, error = await make_authorized_request(
-        chat_id, "GET", f"/api/course/{course_id}/tests/{test_id}/active"
-    )
-    
-    if error:
-        await message.answer(f"Ошибка: {error}")
-    else:
-        active = result.get('active', False) if isinstance(result, dict) else result
-        status = "активен" if active else "не активен"
-        await message.answer(f"Тест {test_id} в курсе {course_id}: {status}")
-
 @router.message(Command("remove_test"))
 async def remove_test_command(message: Message, command: CommandObject = None):
     chat_id = message.chat.id
@@ -969,7 +938,7 @@ async def my_questions_command(message: Message):
             my_questions.append(question)
     
     if not my_questions:
-        await message.answer(" вас нет созданных вопросов")
+        await message.answer("У вас нет созданных вопросов")
         return
     
     response = f"Ваши вопросы ({len(my_questions)}):\n\n"
@@ -1169,28 +1138,30 @@ async def admin_help_command(message: Message):
 Управление пользователями:
 /users - список пользователей
 /user_info [id] [type] - информация о пользователе
-/set_name [id] [имя] - изменить имя
+/set_name [id] [имя] - изменить имя пользователю
 /user_roles [id] - показать роли
 /user_roles [id] set [роли] - установить роли
-/block_user [id] [true/false] - блокировка
+/block_user [id] [true/false] - блокировка пользователей
 
 Управление курсами:
-/create_course [название] [описание] [instructor_id]
-/update_course [id] [название] [описание]
-/delete_course [id]
-/course_students [id]
-/add_to_course [course_id] [user_id]
-/remove_from_course [course_id] [user_id]
+/create_course [название] [описание] [instructor_id] - создать курс
+/update_course [id] [название] [описание] - обновить курс
+/delete_course [id] - удалить курс
+/course_students [id] - студенты на курсе
+/add_to_course [course_id] [user_id] - добавть студента на курс
+/remove_from_course [course_id] [user_id] - отчислить студента с курса
 
 Управление тестами:
-/add_test [course_id] [название]
-/remove_test [course_id] [test_id]
-/set_test_active [course_id] [test_id] [true/false]
-/test_results [test_id]
+/add_test [course_id] [название] - создать тест
+/remove_test [course_id] [test_id] - убрать тест
+/set_test_active [course_id] [test_id] [true/false] - активация теста
+/test_results [test_id] - результаты теста
 
 Управление вопросами:
-/create_question [JSON]
-/add_to_test [test_id] [question_id]
+/create_question [JSON] - создать вопрос
+/update_question [JSON] - обновить вопрос
+/my_questions - узнать мои вопросы
+/add_to_test [test_id] [question_id] - добавить вопрос к тесту
     """
     
     await message.answer(help_text)

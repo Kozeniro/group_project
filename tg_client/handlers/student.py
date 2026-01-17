@@ -397,13 +397,22 @@ async def get_name_command(message: Message, command: CommandObject = None):
         return
     
     if not command or not command.args:
-        user_id = user_state.get('user_id')
-        if not user_id:
-            await message.answer("Не удалось получить ваш ID")
+        id_result, id_error = await make_authorized_request(chat_id, "GET", "/api/user_id")
+        if id_error:
+            await message.answer(f"Не удалось получить ваш ID: {id_error}")
+            return    
+        
+        if isinstance(id_result, dict):
+            numeric_id = id_result.get('user_id')
+        else:
+            numeric_id = str(id_result) if id_result else None
+        
+        if not numeric_id:
+            await message.answer("Не удалось получить ваш numeric_id")
             return
         
         result, error = await make_authorized_request(
-            chat_id, "GET", f"/api/users/{user_id}/name"
+            chat_id, "GET", f"/api/users/{numeric_id}/name"
         )
         
         if error:
@@ -509,24 +518,18 @@ async def user_help_command(message: Message):
     help_text = """
 Команды для студентов:
 
-
-Курсы:
 /courses - все курсы
 /mycourses - мои курсы
 /course [id] - информация о курсе
 /join_course [id] - записаться на курс
 /leave_course [id] - покинуть курс
-
-Тесты:
+/tests [id] - узнать тесты на курсе
 /mytests - мои тесты
 /myscores - мои оценки
+/questions - список вопросов
+/question_info [question_id] [version] - информация о вопросе
 /start_test [id] - начать тест
 /my_attempts - мои попытки
-
-Профиль:
-/set_name [имя] - изменить имя
-/check_blocked - проверить блокировку
-/my_permissions - мои права
     """
     
     await message.answer(help_text)

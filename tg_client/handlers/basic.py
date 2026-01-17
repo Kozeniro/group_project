@@ -51,7 +51,12 @@ async def help_command(message: Message):
 Для авторизованных:
 /student_help - команды для студентов
 /admin_help - команды для учителей(админов)
+/id - узнать свой id
+/name - узнать свое имя
+/name [id] - узнать имя пользователя с id
+/set_name [имя] - изменить своё имя
 /profile - мой профиль
+/check_blocked - проверить блокировку
 /my_permissions - мои права
 /refresh - обновить токены
 /logout - выйти
