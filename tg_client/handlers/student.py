@@ -243,18 +243,70 @@ async def join_course_command(message: Message, command: CommandObject = None):
         return
     
     if not command or not command.args:
-        await message.answer("Использование: /join_course [course_id]")
+        await message.answer(
+            "Использование: /join_course [course_id]\n\n"
+            "Сначала посмотрите доступные курсы: /courses"
+        )
         return
     
-    course_id = command.args.strip()
-    numeric_id = user_state.get('numeric_id')    
-    result, error = await make_authorized_request(chat_id, "POST", f"/api/course/{course_id}/students",
-                                                 data={"user_id": numeric_id})
+    course_id = command.args.strip()    
+    
+    id_result, id_error = await make_authorized_request(chat_id, "GET", "/api/user_id")
+    
+    if id_error:
+        await message.answer(f"Не удалось получить ваш ID: {id_error}")
+        return    
+    
+    if isinstance(id_result, dict):
+        numeric_id = id_result.get('user_id')
+    else:
+        numeric_id = str(id_result) if id_result else None
+    
+    if not numeric_id:
+        await message.answer("Не удалось получить ваш numeric_id")
+        return    
+    
+    course_info, course_error = await make_authorized_request(
+        chat_id, "GET", f"/api/course/{course_id}/info"
+    )
+    
+    if course_error:
+        await message.answer(f"Курс {course_id} не найден: {course_error}")
+        return
+    
+    course_name = course_info.get('name', 'Без названия')
+    instructor_id = course_info.get('instructor_id')
+    
+    
+    if instructor_id and str(instructor_id) == str(numeric_id):
+        await message.answer("Вы преподаватель курса.")
+        return
+    
+    
+    students_result, students_error = await make_authorized_request(
+        chat_id, "GET", f"/api/course/{course_id}/students"
+    )
+    
+    if not students_error and isinstance(students_result, list):
+        if str(numeric_id) in [str(sid) for sid in students_result]:
+            await message.answer(f"Вы уже записаны на курс '{course_name}'")
+            return
+        
+    result, error = await make_authorized_request(
+        chat_id, "POST", f"/api/course/{course_id}/students",
+        data={"user_id": numeric_id}  
+    )
     
     if error:
-        await message.answer(f"Ошибка: {error}")
+        if "500" in error:            
+            await message.answer("Ошибка при записи на курс.")
+        else:
+            await message.answer(f"Ошибка: {error}")
     else:
-        await message.answer(f"Вы записаны на курс {course_id}")
+        await message.answer(f"Вы успешно записаны на курс '{course_name}'!")
+
+
+
 
 @router.message(Command("leave_course"))
 async def leave_course_command(message: Message, command: CommandObject = None):
@@ -270,17 +322,42 @@ async def leave_course_command(message: Message, command: CommandObject = None):
         return
     
     course_id = command.args.strip()
-    user_id = user_state.get('user_id')
     
-    result, error = await make_authorized_request(chat_id, "DELETE", f"/api/course/{course_id}/students",
-                                                 data={"user_id": user_id})
+    id_result, id_error = await make_authorized_request(chat_id, "GET", "/api/user_id")
+    
+    if id_error:
+        await message.answer(f"Не удалось получить ваш ID: {id_error}")
+        return
+    
+    if isinstance(id_result, dict):
+        numeric_id = id_result.get('user_id')
+    else:
+        numeric_id = str(id_result) if id_result else None
+    
+    students_result, students_error = await make_authorized_request(
+        chat_id, "GET", f"/api/course/{course_id}/students"
+    )
+    
+    is_enrolled = False
+    if not students_error and isinstance(students_result, list):
+        is_enrolled = str(numeric_id) in [str(sid) for sid in students_result]
+    
+    if not is_enrolled:
+        await message.answer(f"Вы не записаны на курс {course_id}")
+        return
+    
+    result, error = await make_authorized_request(
+        chat_id, "DELETE", f"/api/course/{course_id}/students",
+        data={"user_id": numeric_id}
+    )
     
     if error:
-        await message.answer(f"Ошибка: {error}")
+        if "404" in error:
+            await message.answer(f"Не удалось выйти с курса {course_id}")
+        else:
+            await message.answer(f"Ошибка выхода с курса: {error}")
     else:
-        await message.answer(f"Вы отчислены с курса {course_id}")
-
-
+        await message.answer(f"Вы успешно вышли с курса {course_id}!")
 
 
 @router.message(Command("name"))
@@ -373,7 +450,7 @@ async def user_help_command(message: Message):
 /my_attempts - мои попытки
 
 Профиль:
-/update_my_name [имя] - изменить имя
+/set_name [имя] - изменить имя
 /check_blocked - проверить блокировку
 /my_permissions - мои права
     """

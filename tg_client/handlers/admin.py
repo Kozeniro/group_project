@@ -264,30 +264,57 @@ async def create_course_command(message: Message, command: CommandObject = None)
     chat_id = message.chat.id
     user_state = get_user_state(chat_id)
     
+    if user_state['state'] != 'authorized':
+        await message.answer("Сначала авторизуйтесь: /login")
+        return
+    
     if not command or not command.args:
-        await message.answer("Использование: /create_course [название] [описание] [instructor_id]")
+        await message.answer(
+            "Использование: /create_course [название] [описание] [instructor_id]\n\n"
+            "Пример: /create_course \"Python\" \"Основы Python\" 1\n\n"
+        )
         return
     
-    args = command.args.strip().split(maxsplit=2)
-    if len(args) != 3:
-        await message.answer("Использование: /create_course [название] [описание] [instructor_id]")
-        return
+    args = command.args.strip()
     
-    name, description, instructor_id = args[0], args[1], args[2]
+    try:
+        course_data = json.loads(args)
+        
+        if not all(key in course_data for key in ['name', 'description', 'instructor_id']):
+            await message.answer("В JSON должны быть поля: name, description, instructor_id")
+            return
+            
+    except json.JSONDecodeError:
+        args_list = args.split(maxsplit=2)
+        if len(args_list) != 3:
+            await message.answer(
+                "Неверный формат. Используйте:\n"
+                "/create_course [название] [описание] [instructor_id]\n\n"
+            )
+            return
+        
+        name, description, instructor_id = args_list
+        
+        instructor_id_int = int(instructor_id)
+       
+            
+        course_data = {
+            "name": name.strip('"\' '),
+            "description": description.strip('"\' '),
+            "instructor_id": instructor_id_int
+        }
     
     if not check_permission(user_state, 'course:add'):
-        await message.answer("Недостаточно прав")
+        await message.answer("Недостаточно прав для создания курса")
         return
     
-    result, error = await make_authorized_request(chat_id, "POST", "/api/course",
-                                                 data={
-                                                     "name": name,
-                                                     "description": description,
-                                                     "instructor_id": instructor_id
-                                                 })
+    result, error = await make_authorized_request(
+        chat_id, "POST", "/api/course",
+        data=course_data
+    )
     
     if error:
-        await message.answer(f"Ошибка: {error}")
+        await message.answer(f"Ошибка создания курса: {error}")
     else:
         course_id = result.get('course_id') if result else 'неизвестен'
         await message.answer(f"Курс создан! ID: {course_id}")
@@ -434,56 +461,181 @@ async def add_test_command(message: Message, command: CommandObject = None):
     chat_id = message.chat.id
     user_state = get_user_state(chat_id)
     
+    if user_state['state'] != 'authorized':
+        await message.answer("Сначала авторизуйтесь: /login")
+        return
+    
     if not command or not command.args:
-        await message.answer("Использование: /add_test [course_id] [название_теста]")
+        await message.answer(
+            "Использование: /add_test [course_id] [название_теста]"
+        )
         return
     
-    args = command.args.strip().split(maxsplit=1)
-    if len(args) != 2:
-        await message.answer("Использование: /add_test [course_id] [название_теста]")
+    args = command.args.strip()   
+    try:        
+        data = json.loads(args)
+        await message.answer(
+            "Для команды /add_test используйте формат с аргументами:\n"
+            "/add_test [course_id] [название_теста]"
+        )
+        return
+    except json.JSONDecodeError:        
+        pass
+    
+    
+    args_list = args.split(maxsplit=1)
+    if len(args_list) != 2:
+        await message.answer(
+            "Неверный формат. Используйте:\n"
+            "/add_test [course_id] [название_теста]"
+        )
         return
     
-    course_id, test_name = args[0], args[1]
+    course_id_str, test_name = args_list[0], args_list[1].strip('"\' ')
+    if not course_id_str.isdigit():
+        await message.answer(f"course_id должен быть числом")
+        return
+    
+    course_id = int(course_id_str)
+    course_result, course_error = await make_authorized_request(
+        chat_id, "GET", f"/api/course/{course_id}/info"
+    )
+    
+    if course_error:        
+        course_result2, course_error2 = await make_authorized_request(
+            chat_id, "GET", f"/api/course/{course_id}"
+        )        
+        if course_error2:
+            await message.answer(f"Курс {course_id} не найден. Ошибка: {course_error}")
+            return    
     
     if not check_permission(user_state, 'course:test:add'):
-        await message.answer("Недостаточно прав")
+        await message.answer("Недостаточно прав для создания теста")
         return
     
-    result, error = await make_authorized_request(chat_id, "POST", f"/api/course/{course_id}/tests",
-                                                 data={"test_name": test_name})
+    result, error = await make_authorized_request(
+        chat_id, "POST", f"/api/course/{course_id}/tests",
+        data={"test_name": test_name}
+    )
+    
+    await message.answer(f"Тест '{test_name}' создан в курсе {course_id}!\nПроверьте тесты: /tests {course_id}")
+
+
+@router.message(Command("tests"))
+async def view_tests_command(message: Message, command: CommandObject = None):
+    chat_id = message.chat.id
+    user_state = get_user_state(chat_id)
+    
+    if user_state['state'] != 'authorized':
+        await message.answer("Сначала авторизуйтесь: /login")
+        return
+    
+    if not command or not command.args:
+        await message.answer("Использование: /tests [course_id]")
+        return
+    
+    course_id = command.args.strip()
+    
+    result, error = await make_authorized_request(
+        chat_id, "GET", f"/api/course/{course_id}/tests"
+    )
     
     if error:
         await message.answer(f"Ошибка: {error}")
-    else:
-        test_id = result.get('test_id') if result else 'неизвестен'
-        await message.answer(f"Тест добавлен. ID: {test_id}")
+        return
+    
+    if not result or (isinstance(result, list) and len(result) == 0):
+        await message.answer(f"В курсе {course_id} нет тестов")
+        return
+    
+    response = f"Тесты курса {course_id}:\n\n"
+    
+    for i, test in enumerate(result, 1):
+        test_id = test.get('id', '?')
+        test_name = test.get('name', 'Без названия')
+        
+        response += f"{i}. {test_name} (ID: {test_id})\n"
+        
+        if 'active' in test:
+            status = "Активен" if test['active'] else "Неактивен"
+            response += f"   Статус: {status}\n"
+        
+        response += "\n"
+    
+    await message.answer(response)
+
 
 @router.message(Command("remove_test"))
 async def remove_test_command(message: Message, command: CommandObject = None):
     chat_id = message.chat.id
     user_state = get_user_state(chat_id)
     
+    if user_state['state'] != 'authorized':
+        await message.answer("Сначала авторизуйтесь: /login")
+        return
+    
     if not command or not command.args:
-        await message.answer("Использование: /remove_test [course_id] [test_id]")
+        await message.answer(
+            "Использование: /remove_test [course_id] [test_id]"
+        )
         return
     
     args = command.args.strip().split()
     if len(args) != 2:
-        await message.answer("Использование: /remove_test [course_id] [test_id]")
+        await message.answer(
+            "Неверный формат. Используйте:\n"
+            "/remove_test [course_id] [test_id]"
+        )
         return
     
     course_id, test_id = args[0], args[1]
     
+    
     if not check_permission(user_state, 'course:test:del'):
-        await message.answer("Недостаточно прав")
+        await message.answer("Недостаточно прав для удаления теста")
         return
     
-    result, error = await make_authorized_request(chat_id, "DELETE", f"/api/course/{course_id}/tests/{test_id}")
+    
+    tests_result, tests_error = await make_authorized_request(
+        chat_id, "GET", f"/api/course/{course_id}/tests"
+    )
+    
+    if tests_error:
+        await message.answer(f"Не удалось получить тесты курса: {tests_error}")
+        return    
+    
+    test_exists = False
+    test_name = None    
+    if isinstance(tests_result, list):
+        for test in tests_result:
+            if str(test.get('id')) == test_id:
+                test_exists = True
+                test_name = test.get('name', 'Без названия')
+                break
+    
+    if not test_exists:
+        available_tests = ""
+        if isinstance(tests_result, list) and tests_result:
+            available_tests = "Доступные тесты:\n"
+            for test in tests_result:
+                test_id_avail = test.get('id', '?')
+                test_name_avail = test.get('name', 'Без названия')
+                available_tests += f"• {test_name_avail} (ID: {test_id_avail})\n"
+        
+        await message.answer(
+            f"Тест {test_id} не найден в курсе {course_id}\n\n"
+            f"{available_tests}"
+        )
+        return    
+    
+    result, error = await make_authorized_request(
+        chat_id, "DELETE", f"/api/course/{course_id}/tests/{test_id}"
+    )
     
     if error:
-        await message.answer(f"Ошибка: {error}")
+        await message.answer(f"Ошибка удаления теста '{test_name}': {error}")
     else:
-        await message.answer(f"Тест {test_id} удален")
+        await message.answer(f"Тест '{test_name}' (ID: {test_id}) удален из курса {course_id}")
 
 @router.message(Command("set_test_active"))
 async def set_test_active_command(message: Message, command: CommandObject = None):
@@ -553,13 +705,178 @@ async def test_results_command(message: Message, command: CommandObject = None):
     
     await message.answer(response)
 
+@router.message(Command("questions"))
+async def list_questions_command(message: Message, command: CommandObject = None):
+    """Просмотр списка вопросов"""
+    chat_id = message.chat.id
+    user_state = get_user_state(chat_id)
+    
+    if user_state['state'] != 'authorized':
+        await message.answer("Сначала авторизуйтесь: /login")
+        return
+    
+    if not check_permission(user_state, 'quest:list:read'):
+        id_result, id_error = await make_authorized_request(chat_id, "GET", "/api/user_id")
+        if id_error:
+            await message.answer(f"Не удалось получить ваш ID: {id_error}")
+            return
+        
+        our_id = id_result.get('user_id') if isinstance(id_result, dict) else id_result
+
+        await message.answer(
+            "ℹУ вас нет прав на просмотр всех вопросов.\n"
+            "Вы можете просматривать только свои вопросы.\n\n"
+            "Используйте /my_questions для просмотра своих вопросов."
+        )
+        return
+    
+    result, error = await make_authorized_request(chat_id, "GET", "/api/questions")
+    
+    if error:
+        await message.answer(f"Ошибка получения вопросов: {error}")
+        return
+    
+    if not result or (isinstance(result, list) and len(result) == 0):
+        await message.answer("Нет вопросов")
+        return
+    
+    response = "Список вопросов:\n\n"
+    
+    for i, question in enumerate(result, 1):
+        question_id = question.get('id', '?')
+        name = question.get('name', 'Без названия')
+        version = question.get('version', 1)
+        author_id = question.get('author_id', '?')
+        
+        response += f"{i}. {name}\n"
+        response += f"   ID: {question_id}, Версия: {version}, Автор: {author_id}\n\n"
+    
+    await message.answer(response)
+
+@router.message(Command("my_questions"))
+async def my_questions_command(message: Message):
+    chat_id = message.chat.id
+    user_state = get_user_state(chat_id)
+    
+    if user_state['state'] != 'authorized':
+        await message.answer("Сначала авторизуйтесь: /login")
+        return
+    
+    id_result, id_error = await make_authorized_request(chat_id, "GET", "/api/user_id")
+    if id_error:
+        await message.answer(f"Не удалось получить ваш ID: {id_error}")
+        return
+    
+    our_id = id_result.get('user_id') if isinstance(id_result, dict) else id_result
+    
+    result, error = await make_authorized_request(chat_id, "GET", "/api/questions")
+    
+    if error:
+        await message.answer(f"Ошибка получения вопросов: {error}")
+        return
+    
+    if not result or (isinstance(result, list) and len(result) == 0):
+        await message.answer("У вас нет вопросов")
+        return
+    
+    my_questions = []
+    for question in result:
+        author_id = question.get('author_id')
+        if author_id and str(author_id) == str(our_id):
+            my_questions.append(question)
+    
+    if not my_questions:
+        await message.answer(" вас нет созданных вопросов")
+        return
+    
+    response = f"Ваши вопросы ({len(my_questions)}):\n\n"
+    
+    for i, question in enumerate(my_questions, 1):
+        question_id = question.get('id', '?')
+        name = question.get('name', 'Без названия')
+        version = question.get('version', 1)
+        
+        response += f"{i}. {name}\n"
+        response += f"   ID: {question_id}, Версия: {version}\n"
+        response += f"   Просмотреть: /question_info {question_id}\n"
+        response += f"   Обновить: /update_question {question_id} [JSON]\n"
+        response += f"   Удалить: /delete_question {question_id}\n\n"
+    
+    await message.answer(response)
+
+@router.message(Command("question_info"))
+async def question_info_command(message: Message, command: CommandObject = None):
+    chat_id = message.chat.id
+    user_state = get_user_state(chat_id)
+    
+    if user_state['state'] != 'authorized':
+        await message.answer("Сначала авторизуйтесь: /login")
+        return
+    
+    if not command or not command.args:
+        await message.answer(
+            "Использование: /question_info [question_id] [version]"
+        )
+        return
+    
+    args = command.args.strip().split()
+    
+    if len(args) == 2:
+        question_id, version = args[0], args[1]
+    else:
+        await message.answer("Неверный формат. Используйте: /question_info [id] [version]")
+        return
+    
+    endpoint = f"/api/questions/{question_id}"
+    params = {"version": version} if version else None
+    
+    result, error = await make_authorized_request(
+        chat_id, "GET", endpoint, params=params
+    )
+    
+    if error:
+        if "404" in error:
+            await message.answer(f"Вопрос {question_id} не найден")
+        elif "403" in error:
+            await message.answer(f"Нет прав для просмотра этого вопроса")
+        else:
+            await message.answer(f"Ошибка: {error}")
+        return
+    
+    name = result.get('name', 'Без названия')
+    text = result.get('text', 'Нет текста')
+    options = result.get('options', [])
+    correct_option = result.get('correct_option')
+    question_version = result.get('version', 1)
+    
+    response = f"Вопрос ID: {question_id}\n"
+    response += f"Название: {name}\n"
+    response += f"Версия: {question_version}\n\n"
+    response += f"Текст вопроса:\n{text}\n\n"
+    
+    if options:
+        response += f"Варианты ответов:\n"
+        for i, option in enumerate(options):
+            prefix = "+" if i == correct_option else "   "
+            response += f"{prefix} {i}. {option}\n"
+    else:
+        response += "Варианты ответов: нет\n"
+    
+    if correct_option is not None:
+        response += f"\nПравильный ответ: вариант {correct_option}"
+    
+    await message.answer(response)
+
 @router.message(Command("create_question"))
 async def create_question_command(message: Message, command: CommandObject = None):
     chat_id = message.chat.id
     user_state = get_user_state(chat_id)
     
     if not command or not command.args:
-        await message.answer("Использование: /create_question [JSON с данными вопроса]")
+        await message.answer(
+            "Использование: /create_question [JSON с данными вопроса]\n"
+            'Пример: /create_question {"name": "Вопрос 1", "text": "2+2=?", "options": ["3", "4", "5"], "correct_option": 1}'
+        )
         return
     
     try:
@@ -585,7 +902,11 @@ async def create_question_command(message: Message, command: CommandObject = Non
             await message.answer(f"Вопрос создан! ID: {question_id}")
             
     except json.JSONDecodeError:
-        await message.answer("Неверный формат JSON")
+        await message.answer(
+            "Неверный формат JSON\n\n"
+            "Использование: /create_question [JSON с данными вопроса]\n"
+            'Пример: /create_question {"name": "Вопрос 1", "text": "2+2=?", "options": ["3", "4", "5"], "correct_option": 1}'
+)
 
 @router.message(Command("add_to_test"))
 async def add_to_test_command(message: Message, command: CommandObject = None):

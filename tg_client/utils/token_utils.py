@@ -1,4 +1,5 @@
 import httpx
+import json
 from typing import Optional, Dict, Any, Tuple
 from .redis_utils import get_user_state, set_user_state, delete_user_state
 from .auth_client import auth_client
@@ -130,11 +131,21 @@ async def _make_request(method: str, url: str, access_token: str, **kwargs):
                 timeout=10.0
             )
         elif method == "DELETE":
-            response = await client.delete(
-                url,
-                headers=headers,
-                timeout=10.0
-            )
+            if kwargs.get('data'):
+                headers["Content-Type"] = "application/json"
+                response = await client.request(
+                    method="DELETE",
+                    url=url,
+                    headers=headers,
+                    content=json.dumps(kwargs['data']),
+                    timeout=10.0
+                )
+            else:
+                response = await client.delete(
+                    url,
+                    headers=headers,
+                    timeout=10.0
+                    )
         else:
             raise ValueError(f"Unsupported method: {method}")
         
