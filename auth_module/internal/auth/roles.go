@@ -8,7 +8,6 @@ const (
 
 var RolePermissions = map[string][]string{
 	RoleUser: {
-		"user:fullName:write",
 		"user:data:read",
 		"user:roles:read",
 		"user:roles:write",
@@ -32,7 +31,6 @@ var RolePermissions = map[string][]string{
 		"answer:del",
 	},
 	RoleTeacher: {
-		"user:fullName:write",
 		"user:data:read",
 		"user:roles:read",
 		"user:roles:write",

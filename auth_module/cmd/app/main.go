@@ -82,12 +82,13 @@ func main() {
 		handlers.AdminHandler,
 	)
 
-	changeRoleHandler := handlers.NewChangeMyRoleHandler(authService)
+	adminHandler := handlers.NewAdminHandler(authService)
 
-	r.POST("/me/role",
+	r.POST("/users/:id/roles",
 		authMiddleware.RequireAuth(),
-		changeRoleHandler.Handle,
+		adminHandler.SetUserRoles,
 	)
+
 	tokenHandler := handlers.NewTokenHandler(
 		loginStore,
 		codeService,

@@ -213,15 +213,18 @@ func (s *AuthService) IssueTokens(
 		User:         user,
 	}, nil
 }
-func (s *AuthService) ChangeMyRole(
+func (s *AuthService) SetUserRoles(
 	ctx context.Context,
 	userID string,
-	newRole string,
+	roles []string,
 ) error {
 
-	if newRole != auth.RoleUser && newRole != auth.RoleTeacher {
-		return errors.New("invalid role")
+	// валидация ролей
+	for _, r := range roles {
+		if _, ok := auth.RolePermissions[r]; !ok {
+			return errors.New("invalid role: " + r)
+		}
 	}
 
-	return s.UserRepo.UpdateRole(ctx, userID, newRole)
+	return s.UserRepo.UpdateRole(ctx, userID, roles)
 }

@@ -7,39 +7,29 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type ChangeMyRoleHandler struct {
+type SetUserRolesRequest struct {
+	Roles []string `json:"roles"`
+}
+type Adminhandler struct {
 	authService *services.AuthService
 }
 
-func NewChangeMyRoleHandler(authService *services.AuthService) *ChangeMyRoleHandler {
-	return &ChangeMyRoleHandler{
-		authService: authService,
-	}
+func NewAdminHandler(authService *services.AuthService) *Adminhandler {
+	return &Adminhandler{authService: authService}
 }
+func (h *Adminhandler) SetUserRoles(c *gin.Context) {
+	targetUserID := c.Param("id")
 
-type changeRoleRequest struct {
-	Role string `json:"role"`
-}
-
-func (h *ChangeMyRoleHandler) Handle(c *gin.Context) {
-	userIDAny, ok := c.Get("userID")
-	if !ok {
-		c.AbortWithStatus(http.StatusUnauthorized)
-		return
-	}
-
-	userID := userIDAny.(string)
-
-	var req changeRoleRequest
+	var req SetUserRolesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
 		return
 	}
 
-	if err := h.authService.ChangeMyRole(
+	if err := h.authService.SetUserRoles(
 		c.Request.Context(),
-		userID,
-		req.Role,
+		targetUserID,
+		req.Roles,
 	); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
