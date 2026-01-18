@@ -109,7 +109,7 @@ AttemptInfo ResourceAttempt::get_info(int user_id, int test_id) {
     );
 
     pqxx::result ans_res = txn.exec_params(
-        "SELECT id, question_id, question_version, answer_option FROM answers ans \
+        "SELECT ans.id, ans.question_id, ans.question_version, ans.answer_option FROM answers ans \
         JOIN attempts att ON ans.attempt_id = att.id WHERE att.user_id = $1 AND att.test_id = $2",
         user_id, test_id
     );
