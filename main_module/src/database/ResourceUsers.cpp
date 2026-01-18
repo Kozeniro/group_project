@@ -46,7 +46,7 @@ std::vector<UserLine> ResourceUsers::get_all() {
 std::string ResourceUsers::get_name(int user_id) {
     pqxx::work txn(conn);
     pqxx::result res = txn.exec_params("SELECT full_name FROM users WHERE id = $1", user_id);
-	std::string full_name = "";
+	std::string full_name = "-";
 	if (!res[0]["full_name"].is_null()) full_name = res[0]["full_name"].as<std::string>();
     return full_name;
 }
