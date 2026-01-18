@@ -37,3 +37,21 @@ func (h *Adminhandler) SetUserRoles(c *gin.Context) {
 
 	c.Status(http.StatusNoContent)
 }
+func (h *Adminhandler) UserPermissions(c *gin.Context) {
+	targetUserID := c.Param("id")
+
+	roles, permissions, err := h.authService.GetUserRolesAndPermissions(
+		c.Request.Context(),
+		targetUserID,
+	)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"user_id":     targetUserID,
+		"roles":       roles,
+		"permissions": permissions,
+	})
+}

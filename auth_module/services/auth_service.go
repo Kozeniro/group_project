@@ -228,3 +228,17 @@ func (s *AuthService) SetUserRoles(
 
 	return s.UserRepo.UpdateRole(ctx, userID, roles)
 }
+func (s *AuthService) GetUserRolesAndPermissions(
+	ctx context.Context,
+	userID string,
+) ([]string, []string, error) {
+
+	user, err := s.UserRepo.FindByID(ctx, userID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	permissions := auth.PermissionsForRoles(user.Roles)
+
+	return user.Roles, permissions, nil
+}

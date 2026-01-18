@@ -82,13 +82,17 @@ func main() {
 		handlers.ProfileHandler,
 	)
 
+	adminHandler := handlers.NewAdminHandler(authService)
+
+	r.GET("/users/:id/permissions",
+		authMiddleware.RequireAuth(),
+		adminHandler.UserPermissions,
+	)
 	r.GET("/admin",
 		authMiddleware.RequireAuth(),
 		authMiddleware.RequireRole("admin"),
 		handlers.AdminHandler,
 	)
-
-	adminHandler := handlers.NewAdminHandler(authService)
 
 	r.POST("/users/:id/roles",
 		authMiddleware.RequireAuth(),
