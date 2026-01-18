@@ -4,15 +4,25 @@ import (
 	"net/http"
 
 	"github.com/adziasanovablamet/auth-module/internal/login"
+	"github.com/adziasanovablamet/auth-module/services"
 	"github.com/gin-gonic/gin"
 )
 
 type LoginStatusHandler struct {
-	store *login.Store
+	store       *login.Store
+	CodeService *services.CodeService
+	AuthService *services.AuthService
 }
 
-func NewLoginStatusHandler(store *login.Store) *LoginStatusHandler {
-	return &LoginStatusHandler{store: store}
+func NewLoginStatusHandler(store *login.Store,
+	codeService *services.CodeService,
+	authService *services.AuthService,
+) *LoginStatusHandler {
+	return &LoginStatusHandler{
+		store:       store,
+		CodeService: codeService,
+		AuthService: authService,
+	}
 }
 
 func (h *LoginStatusHandler) Status(c *gin.Context) {
@@ -26,6 +36,33 @@ func (h *LoginStatusHandler) Status(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"status": "expired"})
 		return
+	}
+
+	// 🔥 ФИНАЛИЗАЦИЯ ЛОГИНА
+	if lt.Status == login.StatusPending && !lt.UserID.IsZero() {
+		user, err := h.AuthService.UserRepo.FindByID(
+			c.Request.Context(),
+			lt.UserID.Hex(),
+		)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+			return
+		}
+
+		tokens, err := h.AuthService.IssueTokens(
+			c.Request.Context(),
+			user,
+		)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		lt.Status = login.StatusApproved
+		lt.AccessToken = tokens.AccessToken
+		lt.RefreshToken = tokens.RefreshToken
+
+		h.store.Update(lt)
 	}
 
 	resp := gin.H{

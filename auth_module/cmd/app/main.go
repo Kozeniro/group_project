@@ -64,7 +64,11 @@ func main() {
 	)
 	// ===== Handlers =====
 	authHandler := handlers.NewAuthHandler(authService)
-	loginStatusHandler := handlers.NewLoginStatusHandler(loginStore)
+	loginStatusHandler := handlers.NewLoginStatusHandler(
+		loginStore,
+		codeService,
+		authService,
+	)
 
 	// ===== Middleware =====
 	authMiddleware := middleware.NewAuthMiddleware(jwtService)
@@ -93,6 +97,7 @@ func main() {
 		loginStore,
 		codeService,
 		authService,
+		jwtService,
 	)
 	githubCallbackHandler := handlers.NewGitHubCallbackHandler(
 		githubService,
@@ -125,7 +130,7 @@ func main() {
 		// 🔹 Проверка статуса login_token
 		auth.GET("/status", loginStatusHandler.Status)
 		auth.GET("login/code", CodeLoginHandler.Start)
-		auth.GET("/verify", tokenHandler.Verify)
+		auth.POST("login/code/verify", tokenHandler.Verify)
 	}
 
 	// ===== Protected routes =====

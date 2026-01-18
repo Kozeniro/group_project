@@ -14,9 +14,14 @@ type TokenHandler struct {
 	Store       *login.Store
 	CodeService *services.CodeService
 	AuthService *services.AuthService
+	JwtService  *services.JWTService
 }
 type CodeLoginHandler struct {
 	CodeService *services.CodeService
+}
+type CodeVerifyRequest struct {
+	Code         string `json:"code"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 func NewCodeLoginHandler(
@@ -46,11 +51,13 @@ func NewTokenHandler(
 	store *login.Store,
 	codeService *services.CodeService,
 	authService *services.AuthService,
+	jwtService *services.JWTService,
 ) *TokenHandler {
 	return &TokenHandler{
 		Store:       store,
 		CodeService: codeService,
 		AuthService: authService,
+		JwtService:  jwtService,
 	}
 }
 
@@ -66,45 +73,45 @@ func (h *TokenHandler) CreateLoginToken(c *gin.Context) {
 
 // POST /auth/login/code/verify
 func (h *TokenHandler) Verify(c *gin.Context) {
-	code := c.Query("code")
-	if code == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "code required"})
+	var req CodeVerifyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// 1. code -> loginToken
-	loginToken, err := h.CodeService.VerifyCode(code)
+	loginToken, err := h.CodeService.VerifyCode(req.Code)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 2. loginToken -> login entry
-	entry, err := h.Store.Get(loginToken)
+	// 2. проверить refresh token
+	claims, err := h.JwtService.ValidateRefreshToken(req.RefreshToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh token"})
 		return
 	}
-	user, err := h.AuthService.UserRepo.FindByID(
+
+	// 3. найти пользователя по email
+	user, err := h.AuthService.UserRepo.FindByEmail(
 		c.Request.Context(),
-		entry.UserID.Hex(),
+		claims.Email,
 	)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+		return
 	}
-	// 3. выдаём JWT
-	tokens, err := h.AuthService.IssueTokens(
-		c.Request.Context(),
-		user,
-	)
-	if err != nil {
+
+	// 4. привязать пользователя к login token
+	if err := h.Store.AttachUser(loginToken, user.ID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
+	// 5. НИЧЕГО БОЛЬШЕ НЕ ДЕЛАЕМ
 	c.JSON(http.StatusOK, gin.H{
-		"access_token":  tokens.AccessToken,
-		"refresh_token": tokens.RefreshToken,
+		"status": "approved",
 	})
 }
 
