@@ -24,6 +24,7 @@ void Api_resAttempt::create_attempt(const httplib::Request& req, httplib::Respon
     }
     int attempt_id = resAttempt.create_attempt(user_id, test_id);
 	if (attempt_id == -1) {res.status=403; return;}
+	if (attempt_id == -2) {res.status=204; return;}
     nlohmann::json json_response;
     json_response["attempt_id"] = attempt_id;
     res.set_content(json_response.dump(), "application/json");

@@ -49,7 +49,9 @@ int ResourceAttempt::create_attempt(int user_id, int test_id) {
                 resource_answers.create_answer(attempt_id, question["question_id"].as<int>());
             }
         }
+		else return -1;
     }
+	else return -2;
 	
     return attempt_id;
 }
