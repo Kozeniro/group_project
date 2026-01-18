@@ -191,9 +191,13 @@ async def user_roles_command(message: Message, command: CommandObject = None):
         if not check_permission(user_state, 'user:roles:read'):
             await message.answer("Недостаточно прав для просмотра ролей")
             return
-        
+        result_id, error_id = await make_authorized_request(
+            chat_id, "GET", f"/api/auth/{user_id}/roles"
+        )
+        if error_id:
+            await message.answer(f"Ошибка: {error_id}")
         result, error = await make_authorized_request(
-            chat_id, "GET", f"/api/users/{user_id}/roles"
+            chat_id, "GET", f"/auth/users/{result_id}/roles"
         )
         
         if error:
@@ -610,69 +614,54 @@ async def remove_from_course_command(message: Message, command: CommandObject = 
     else:
         await message.answer(f"Пользователь {target_user_id} удален с курса {course_id}")
 
-@router.message(Command("add_test"))
-async def add_test_command(message: Message, command: CommandObject = None):
+@router.message(Command("add_to_test"))
+async def add_to_test_command(message: Message, command: CommandObject = None):
     chat_id = message.chat.id
     user_state = get_user_state(chat_id)
     
-    if user_state['state'] != 'authorized':
-        await message.answer("Сначала авторизуйтесь: /login")
-        return
-    
     if not command or not command.args:
-        await message.answer(
-            "Использование: /add_test [course_id] [название_теста]"
+        await message.answer("Использование: /add_to_test [test_id] [question_id]")
+        return
+    
+    args = command.args.strip().split()
+    if len(args) != 2:
+        await message.answer("Использование: /add_to_test [test_id] [question_id]")
+        return
+    
+    test_id, question_id = args[0], args[1]
+    
+    if not check_permission(user_state, 'test:quest:add'):
+        await message.answer("Недостаточно прав для добавления вопроса в тест")
+        return
+    
+    try:
+        result, error = await make_authorized_request(
+            chat_id, "POST", f"/api/tests/{test_id}/questions",
+            data={"question_id": int(question_id) if question_id.isdigit() else question_id}
         )
-        return
-    
-    args = command.args.strip()   
-    try:        
-        data = json.loads(args)
-        await message.answer(
-            "Для команды /add_test используйте формат с аргументами:\n"
-            "/add_test [course_id] [название_теста]"
-        )
-        return
-    except json.JSONDecodeError:        
-        pass
-    
-    
-    args_list = args.split(maxsplit=1)
-    if len(args_list) != 2:
-        await message.answer(
-            "Неверный формат. Используйте:\n"
-            "/add_test [course_id] [название_теста]"
-        )
-        return
-    
-    course_id_str, test_name = args_list[0], args_list[1].strip('"\' ')
-    if not course_id_str.isdigit():
-        await message.answer(f"course_id должен быть числом")
-        return
-    
-    course_id = int(course_id_str)
-    course_result, course_error = await make_authorized_request(
-        chat_id, "GET", f"/api/course/{course_id}/info"
-    )
-    
-    if course_error:        
-        course_result2, course_error2 = await make_authorized_request(
-            chat_id, "GET", f"/api/course/{course_id}"
-        )        
-        if course_error2:
-            await message.answer(f"Курс {course_id} не найден. Ошибка: {course_error}")
-            return    
-    
-    if not check_permission(user_state, 'course:test:add'):
-        await message.answer("Недостаточно прав для создания теста")
-        return
-    
-    result, error = await make_authorized_request(
-        chat_id, "POST", f"/api/course/{course_id}/tests",
-        data={"test_name": test_name}
-    )
-    
-    await message.answer(f"Тест '{test_name}' создан в курсе {course_id}!\nПроверьте тесты: /tests {course_id}")
+        
+        if error:
+            if "500" in error:
+                await message.answer(
+                    "Ошибка сервера при добавлении вопроса в тест.\n\n"
+                    "Возможные причины:\n"
+                    "1. Тест не существует\n"
+                    "2. Вопрос не существует\n"
+                    "3. Тест уже имеет попытки прохождения (нельзя менять вопросы)\n"
+                    "4. Вопрос уже добавлен в тест\n"
+                    "5. У вас нет прав на изменение этого теста\n\n"
+                    "Проверьте:\n"
+                    f"- Существует ли тест: /test {test_id}\n"
+                    f"- Существует ли вопрос: /question_info {question_id} 1\n"
+                    f"- Ваши права: /my_permissions"
+                )
+            else:
+                await message.answer(f"Ошибка: {error}")
+        else:
+            await message.answer(f"Вопрос {question_id} добавлен в тест {test_id}")
+            
+    except Exception as e:
+        await message.answer(f"Исключение: {e}")
 
 
 @router.message(Command("tests"))

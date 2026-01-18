@@ -64,7 +64,7 @@ async def profile_command(message: Message):
             response_text += "Имя: Не указано\nСменить имя: /name"
             
         else:
-            response_text += f"Имя: Неизвестно (ошибка: {name_error})\nСменить имя: /name"
+            response_text += f"Имя: Неизвестно (ошибка: {name_error})\nСменить имя: /set_name"
     else:
         if isinstance(name_result, dict):
             name = name_result.get('name', 'Не указано')
