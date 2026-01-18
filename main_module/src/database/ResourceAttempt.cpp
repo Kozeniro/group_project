@@ -24,11 +24,11 @@ int ResourceAttempt::get_user(int attempt_id){
 int ResourceAttempt::create_attempt(int user_id, int test_id) {
     int attempt_id = -1;
     pqxx::work txn(conn);
-    pqxx::result attempt_exists = txn.exec_params(
-        "SELECT EXISTS (SELECT 1 FROM attempts WHERE user_id = $1 AND test_id = $2)",
+    pqxx::result attempt = txn.exec_params(
+        "SELECT id FROM attempts WHERE user_id = $1 AND test_id = $2",
         user_id, test_id
     );
-    if (!attempt_exists[0][0].as<bool>()) {
+    if (attempt.empty()) {
         pqxx::result test_active = txn.exec_params(
             "SELECT is_active FROM tests WHERE id = $1", test_id
         );
@@ -51,7 +51,7 @@ int ResourceAttempt::create_attempt(int user_id, int test_id) {
         }
 		else return -1;
     }
-	else return -2;
+	else return attempt[0][0].as<int>();
 	
     return attempt_id;
 }
