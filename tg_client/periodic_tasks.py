@@ -36,9 +36,6 @@ class PeriodicTasks:
     async def _check_anonymous_users_batch(self):
         anonymous_users = get_all_anonymous_users()
         
-        if not anonymous_users:
-            return
-        
         for chat_id in anonymous_users:
             try:
                 user_state = get_user_state(chat_id)
@@ -51,38 +48,37 @@ class PeriodicTasks:
                     continue
                 
                 status_data = await auth_client.check_login_status(login_token)
+                
+                if 'error' in status_data:
+                    if "404" in status_data['error'] or "400" in status_data['error']:
+                        delete_user_state(chat_id)
+                    continue
+                
                 status = status_data.get('status')
                 
-                if status == 'authorized':
+                if status in ['authorized', 'approved']:
                     access_token = status_data.get('access_token')
                     refresh_token = status_data.get('refresh_token')
                     
                     if not access_token or not refresh_token:
-                        logger.error(f"No tokens for chat {chat_id}")
                         continue
                     
                     update_user_tokens(chat_id, access_token, refresh_token)
                     
-                    try:
-                        await self.bot.send_message(
-                            chat_id=chat_id,
-                            text="Успешная авторизация."
-                        )
-                    except Exception as e:
-                        logger.error(f"Failed to send auth success message: {e}")
-                
+                    await self.bot.send_message(
+                        chat_id=chat_id,
+                        text="Авторизация успешно завершена!"
+                    )
+                    
                 elif status in ['expired', 'denied']:
                     delete_user_state(chat_id)
                     
                     if status == 'denied':
-                        try:
-                            await self.bot.send_message(
-                                chat_id=chat_id,
-                                text="Авторизация отклонена. Попробуйте снова: /login"
-                            )
-                        except Exception as e:
-                            logger.error(f"Failed to send denied message: {e}")
-                
+                        await self.bot.send_message(
+                            chat_id=chat_id,
+                            text="Авторизация отклонена. Попробуйте снова: /login"
+                        )
+                        
             except Exception as e:
                 logger.error(f"Error processing anonymous user {chat_id}: {e}")
     
