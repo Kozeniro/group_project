@@ -6,8 +6,8 @@
 #include <string>
 
 struct ScoresUsers {
-	int score;
 	int user_id;
+	int score;
 };
 
 struct q_a {
