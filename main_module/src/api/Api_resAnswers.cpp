@@ -54,10 +54,10 @@ void Api_resAnswers::update_answer(const httplib::Request& req, httplib::Respons
     } catch (...) {
         res.status = 400; return;
     }
-    if (!json_body.contains("answer_id") || !json_body.contains("answer_option")) {
+    if (!json_body.contains("answer_option")) {
         res.status = 400; return;
     }
-    int answer_id = json_body["answer_id"].get<int>();
+    int answer_id = std::stoi(req.matches[1]);
     int answer_option = json_body["answer_option"].get<int>();
     if (p_info.status==403 && resAnswers.get_user(answer_id)!=p_info.user_id){
         res.status = p_info.status; return;
