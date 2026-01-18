@@ -53,7 +53,7 @@ async def start_test_command(message: Message, command: CommandObject = None, st
     
     result, error = await make_authorized_request(
         chat_id, "POST", "/api/attempt",
-        data={"user_id": numeric_id, "test_id": test_id}
+        data={"user_id": numeric_id, "test_id": int(test_id)}
     )
     
     if error:
@@ -75,7 +75,7 @@ async def start_test_command(message: Message, command: CommandObject = None, st
         await message.answer("Не удалось создать попытку")
         return
         
-    test_result = await make_authorized_request(chat_id, "GET", f"/api/tests/{test_id}")
+    test_result, error = await make_authorized_request(chat_id, "GET", f"/api/tests/{test_id}/questions")
     
     questions = test_result.get('questions', [])
     if not questions:
@@ -209,13 +209,22 @@ async def my_attempts_command(message: Message):
         await message.answer("Сначала авторизуйтесь: /login")
         return
     
-    user_id = user_state.get('user_id')
+    id_result, id_error = await make_authorized_request(chat_id, "GET", "/api/user_id")
     
-    if not user_id:
-        await message.answer("Не удалось получить ваш ID")
-        return
+    if id_error:
+        await message.answer(f"Не удалось получить ваш ID: {id_error}")
+        return    
     
-    courses_result, courses_error = await make_authorized_request(chat_id, "GET", f"/api/users/{user_id}/info",
+    if isinstance(id_result, dict):
+        numeric_id = id_result.get('user_id')
+    else:
+        numeric_id = str(id_result) if id_result else None
+    
+    if not numeric_id:
+        await message.answer("Не удалось получить ваш numeric_id")
+        return       
+    
+    courses_result, courses_error = await make_authorized_request(chat_id, "GET", f"/api/users/{numeric_id}/info",
                                                                  params={"info_type": "courses"})
     
     if courses_error:
@@ -240,7 +249,7 @@ async def my_attempts_command(message: Message):
                 test_name = test.get('name', 'Без названия')
                 
                 attempt_result, attempt_error = await make_authorized_request(chat_id, "GET", f"/api/attempt",
-                                                                             params={"user_id": user_id, "test_id": test_id})
+                                                                             params={"user_id": numeric_id, "test_id": test_id})
                 
                 if not attempt_error and attempt_result:
                     status = attempt_result.get('status', 'неизвестно')
@@ -294,13 +303,7 @@ async def join_course_command(message: Message, command: CommandObject = None):
     
     course_name = course_info.get('name', 'Без названия')
     instructor_id = course_info.get('instructor_id')
-    
-    
-    if instructor_id and str(instructor_id) == str(numeric_id):
-        await message.answer("Вы преподаватель курса.")
-        return
-    
-    
+        
     students_result, students_error = await make_authorized_request(
         chat_id, "GET", f"/api/course/{course_id}/students"
     )

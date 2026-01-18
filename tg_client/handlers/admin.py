@@ -184,35 +184,65 @@ async def user_roles_command(message: Message, command: CommandObject = None):
             await message.answer("Недостаточно прав для просмотра ролей")
             return
         
-        result, error = await make_authorized_request(
-            chat_id, "GET", f"/api/users/{user_id}/roles"
+        result_id, error_id = await make_authorized_request(
+            chat_id, "GET", f"/api/{user_id}/auth_id"
         )
         
-        if error:
-            await message.answer(f"Ошибка: {error}")
+        if error_id:
+            await message.answer(f"Ошибка получения auth_id: {error_id}")
             return
         
-        roles = []
+        auth_id = None
+        if isinstance(result_id, dict):
+            auth_id = result_id.get('auth_id')
+        elif result_id:
+            auth_id = str(result_id)
         
-        if isinstance(result, dict):
-            if 'roles' in result:
-                roles = result['roles']
-            elif 'role' in result:
-                roles = [result['role']]
-        elif isinstance(result, list):
-            roles = result
+        if not auth_id:
+            await message.answer(f"Не удалось получить auth_id для пользователя {user_id}")
+            return
         
-        await message.answer(
-            f"Роли пользователя {user_id}:\n" + 
-            (', '.join([str(r) for r in roles]) if roles else 'нет ролей')
-        )
+        auth_base_url = Config.AUTH_SERVER_URL.rstrip('/')
+        
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            headers = {
+                "Authorization": f"Bearer {user_state.get('access_token')}",
+                "Content-Type": "application/json"
+            }
+            
+            response = await client.get(
+                f"{auth_base_url}/users/{auth_id}/permissions",
+                headers=headers
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                roles = []
+                
+                if isinstance(result, dict):
+                    if 'roles' in result:
+                        roles = result['roles']
+                    elif 'role' in result:
+                        roles = [result['role']]
+                elif isinstance(result, list):
+                    roles = result
+                
+                await message.answer(
+                    f"Роли пользователя {user_id}:\n" + 
+                    (', '.join([str(r) for r in roles]) if roles else 'нет ролей')
+                )
+            else:
+                error_msg = f"Ошибка от сервера авторизации: {response.status_code}"
+                if response.text:
+                    error_msg += f" - {response.text[:200]}"
+                await message.answer(error_msg)
     
     elif len(args) >= 3 and args[1] == 'set':
         user_id = args[0]
         roles_str = ' '.join(args[2:])
         
         try:
-            import json
             if roles_str.startswith('[') and roles_str.endswith(']'):
                 roles = json.loads(roles_str)
             elif ',' in roles_str:
@@ -247,45 +277,43 @@ async def user_roles_command(message: Message, command: CommandObject = None):
             await message.answer(f"Не удалось получить auth_id для пользователя {user_id}")
             return
         
-        from utils.config import Config
         auth_base_url = Config.AUTH_SERVER_URL.rstrip('/')
         
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                headers = {
-                    "Authorization": f"Bearer {user_state.get('access_token')}",
-                    "Content-Type": "application/json"
-                }
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            headers = {
+                "Authorization": f"Bearer {user_state.get('access_token')}",
+                "Content-Type": "application/json"
+            }
+            
+            response = await client.post(
+                f"{auth_base_url}/users/{auth_id}/roles",
+                headers=headers,
+                json={"roles": roles}
+            )
+            
+            if response.status_code in [200, 201, 204]:
+                await message.answer(f"Роли пользователя {user_id} обновлены")
+            else:
+                error_msg = f"Ошибка от сервера авторизации: {response.status_code}"
+                if response.text:
+                    error_msg += f" - {response.text[:200]}"
                 
-                response = await client.post(
-                    f"{auth_base_url}/users/{auth_id}/roles",
-                    headers=headers,
-                    json={"roles": roles}
-                )
-                
-                if response.status_code in [200, 201, 204]:
-                    await message.answer(f"Роли пользователя {user_id} обновлены")
+                if response.status_code == 500:
+                    await message.answer(
+                        f"{error_msg}\n\n"
+                        "Возможные причины:\n"
+                        "1. Неверный формат ролей (должны быть: ['student', 'teacher', 'admin'])\n"
+                        "2. Попытка удалить все роли у пользователя\n"
+                        "3. Проблема на сервере авторизации"
+                    )
                 else:
-                    error_msg = f"Ошибка от сервера авторизации: {response.status_code}"
-                    if response.text:
-                        error_msg += f" - {response.text[:200]}"
-                    
-                    if response.status_code == 500:
-                        await message.answer(
-                            f"{error_msg}\n\n"
-                            "Возможные причины:\n"
-                            "1. Неверный формат ролей (должны быть: ['student', 'teacher', 'admin'])\n"
-                            "2. Попытка удалить все роли у пользователя\n"
-                            "3. Проблема на сервере авторизации"
-                        )
-                    else:
-                        await message.answer(error_msg)
+                    await message.answer(error_msg)
                         
-        except Exception as e:
-            await message.answer(f"Ошибка запроса к серверу авторизации: {e}")
     
     else:
         await message.answer("Неверный формат команды")
+                        
 
 
 @router.message(Command("block_user"))
