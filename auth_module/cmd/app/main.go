@@ -64,10 +64,12 @@ func main() {
 	)
 	// ===== Handlers =====
 	authHandler := handlers.NewAuthHandler(authService)
+	sessionService := services.NewSessionService(24 * time.Hour)
 	loginStatusHandler := handlers.NewLoginStatusHandler(
 		loginStore,
 		codeService,
 		authService,
+		sessionService,
 	)
 
 	// ===== Middleware =====
