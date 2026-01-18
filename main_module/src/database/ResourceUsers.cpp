@@ -81,22 +81,23 @@ std::vector<std::string> ResourceUsers::get_info(int user_id, Info info_type) {
         }
         case Scores:
         {
+			pqxx::result res_scores = txn.exec_params("SELECT score FROM attempts WHERE user_id = $1",
+                user_id
+            );
+            for (const auto& row : res_scores) {
+                info.push_back(row["score"].as<std::string>());
+            }
+            break;
+            
+        }
+        case Tests:
+        {
             pqxx::result res_tests = txn.exec_params("SELECT t.name FROM tests t \
                 JOIN attempts a ON t.id = a.test_id WHERE a.user_id = $1",
                 user_id
             );
             for (const auto& row : res_tests) {
                 info.push_back(row["name"].as<std::string>());
-            }
-            break;
-        }
-        case Tests:
-        {
-            pqxx::result res_scores = txn.exec_params("SELECT score FROM attempts WHERE user_id = $1",
-                user_id
-            );
-            for (const auto& row : res_scores) {
-                info.push_back(row["score"].as<std::string>());
             }
             break;
         }

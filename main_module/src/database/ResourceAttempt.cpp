@@ -5,9 +5,8 @@ ResourceAttempt::ResourceAttempt(pqxx::connection& conn, ResourceAnswers& resour
 // 0.Проверить есть ли тест у пользователя
 bool ResourceAttempt::user_has_test(int user_id, int test_id){
     pqxx::work txn(conn);
-    pqxx::result res = txn.exec_params("SELECT EXISTS (SELECT 1 FROM users u \
-        JOIN courses_users cu ON u.id = cu.user_id JOIN tests t ON cu.course_id = t.course_id \
-        WHERE u.id = $1 AND t.id = $2)",
+    pqxx::result res = txn.exec_params("SELECT EXISTS (SELECT 1 FROM courses_users cu \
+		JOIN tests t ON cu.course_id = t.course_id WHERE cu.user_id = $1 AND t.id = $2)",
         user_id, test_id
     );
     return res[0][0].as<bool>();
