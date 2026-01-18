@@ -74,21 +74,10 @@ async def start_test_command(message: Message, command: CommandObject = None, st
     if not attempt_id:
         await message.answer("Не удалось создать попытку")
         return
+        
+    test_result = await make_authorized_request(chat_id, "GET", f"/api/tests/{test_id}")
     
-    test_info = None
-    endpoints = [f"/api/tests/{test_id}", f"/api/test/{test_id}"]
-    
-    for endpoint in endpoints:
-        test_result, test_error = await make_authorized_request(chat_id, "GET", endpoint)
-        if not test_error:
-            test_info = test_result
-            break
-    
-    if not test_info:
-        await message.answer("Не удалось получить информацию о тесте")
-        return
-    
-    questions = test_info.get('questions', [])
+    questions = test_result.get('questions', [])
     if not questions:
         await message.answer("В тесте нет вопросов")
         return
@@ -106,7 +95,7 @@ async def start_test_command(message: Message, command: CommandObject = None, st
     
     if state:
         await state.set_state(TestTaking.waiting_for_answer)
-        await state.set_data(session_data)
+        await state.set_data(session_data)  
     
     await show_question(message, session_data)
 
@@ -472,29 +461,8 @@ async def check_blocked_command(message: Message, command: CommandObject = None)
         
         target_id = str(numeric_id)
         check_self = True
-    else:
-        
+    else:        
         target_id = command.args.strip()
-        check_self = str(target_id) == str(user_state.get('user_id', ''))
-    
-    
-    if not check_self:
-        
-        access_token = user_state.get('access_token')
-        if access_token:
-            try:
-                import jwt
-                decoded = jwt.decode(access_token, options={"verify_signature": False})
-                permissions = decoded.get('permissions', [])
-                
-                if 'user:block:read' not in permissions:
-                    
-                    roles = decoded.get('roles', [])
-                    if 'admin' not in roles and 'teacher' not in roles:
-                        await message.answer("Недостаточно прав для просмотра блокировки других пользователей")
-                        return
-            except Exception:
-                pass
     
     result, error = await make_authorized_request(
         chat_id, "GET", f"/api/users/{target_id}/blocked"
