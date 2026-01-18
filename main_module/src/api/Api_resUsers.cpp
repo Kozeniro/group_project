@@ -17,17 +17,7 @@ void Api_resUsers::get_auth_id(const httplib::Request& req, httplib::Response& r
 	if (p_info.status==401) {
         res.status = p_info.status; return;
     }
-	nlohmann::json body_json;
-    try {
-        body_json = nlohmann::json::parse(req.body);
-    } catch (...) {
-        res.status = 400; return;
-    }
-    
-    if (!body_json.contains("user_id")) {
-        res.status = 400; return;
-    }
-	int user_id = body_json["user_id"].get<int>();
+	int user_id = std::stoi(req.matches[1]);
 	nlohmann::json json_response;
 	json_response["auth_id"] = resUsers.get_auth_id(user_id);
 	res.set_content(json_response.dump(), "application/json");
@@ -169,24 +159,6 @@ void Api_resUsers::set_roles(const httplib::Request& req, httplib::Response& res
 
     resUsers.set_roles(user_id, new_roles);
 
-    httplib::Client cli("localhost", 8081);
-    nlohmann::json json_payload;
-    json_payload["roles"] = new_roles;
-
-    httplib::Headers headers = {
-		{"Content-Type", "application/json"},
-		{"Authorization", "Bearer " + p_info.token}
-	};
-	auto resp = cli.Post(
-		"/users/" + resUsers.get_auth_id(user_id) + "/roles",
-		headers,
-		json_payload.dump(),
-		"application/json"
-	);
-
-    if (!resp) {
-        res.status = 500;
-    }
 }
 
 void Api_resUsers::check_user_blocked(const httplib::Request& req, httplib::Response& res) {
