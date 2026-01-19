@@ -76,7 +76,18 @@ void create_tables(pqxx::connection& conn){
 						question_id INTEGER NOT NULL,\
 						PRIMARY KEY (test_id, question_id),\
 						position INTEGER NOT NULL\
-					);";
+					);" + 
+					R"(DROP TRIGGER IF EXISTS trg_check_question_local_id ON tests_questions;
+					CREATE OR REPLACE FUNCTION check_question_local_id() RETURNS TRIGGER AS $$
+					BEGIN
+						IF NOT EXISTS (SELECT 1 FROM questions WHERE local_id = NEW.question_id) THEN
+							RAISE EXCEPTION 'Question with local_id % does not exist', NEW.question_id;
+						END IF; RETURN NEW;
+					END;
+					$$ LANGUAGE plpgsql;
+					CREATE TRIGGER trg_check_question_local_id
+					BEFORE INSERT ON tests_questions
+					FOR EACH ROW EXECUTE FUNCTION check_question_local_id();)";
 			else if (t=="attempts")
 				query = "\
 					CREATE TABLE "+t+" (\

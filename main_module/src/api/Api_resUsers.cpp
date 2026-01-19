@@ -133,8 +133,9 @@ void Api_resUsers::get_roles(const httplib::Request& req, httplib::Response& res
 
     int user_id = std::stoi(req.matches[1]);
 	try{
-	nlohmann::json j_roles = p_info.roles;
-    res.set_content(j_roles.dump(), "application/json");
+	auto roles = resUsers.get_roles(user_id);
+    nlohmann::json j = roles;
+    res.set_content(j.dump(), "application/json");
 	} catch(...){res.status = 404;}
 }
 
