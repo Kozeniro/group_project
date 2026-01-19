@@ -1190,6 +1190,7 @@ async def admin_help_command(message: Message):
 /remove_test [course_id] [test_id] - убрать тест
 /set_test_active [course_id] [test_id] [true/false] - активация теста
 /test_results [test_id] - результаты теста
+/scores [id] - узнать оценки пользователя
 
 Управление вопросами:
 /create_question [JSON] - создать вопрос
